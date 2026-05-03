@@ -274,6 +274,7 @@ input,textarea,select{font-size:16px!important}
   padding:1px 6px;border-radius:10px;background:var(--creme-dk);
   flex-shrink:0;outline:none;border:1px solid transparent;transition:all .12s;
 }
+.block-dir:empty::before{content:attr(data-ph);opacity:.35;pointer-events:none;font-style:italic}
 .sc-key:focus{background:#fff;border-color:var(--azul)}
 .sc-type-badge{font-size:9px;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:10px;font-weight:700;white-space:nowrap}
 .sc-note{
@@ -281,7 +282,11 @@ input,textarea,select{font-size:16px!important}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   outline:none;border-radius:3px;padding:1px 4px;transition:background .12s;
 }
-.sc-note:focus,.sc-note.editing{background:rgba(29,79,122,.05);white-space:normal;overflow:visible}
+.sc-note.sc-note-empty{opacity:0;pointer-events:none;width:0;padding:0;overflow:hidden}
+.sc-note.sc-note-empty:focus,.sc-note:focus,.sc-note.editing{
+  opacity:1;pointer-events:auto;width:auto;padding:1px 4px;
+  background:rgba(29,79,122,.05);white-space:normal;overflow:visible;
+}
 .sc-actions{display:flex;gap:2px;flex-shrink:0;margin-left:auto}
 .ib{
   width:30px;height:30px;border-radius:8px;border:1px solid transparent;
@@ -445,7 +450,7 @@ body[data-layout="compact"] .sc-sub{display:none}
   <div class="fab-item" onclick="closeFab();exportSetlist()"><span class="fab-item-icon" style="background:var(--azul)">📤</span>Exportar setlist</div>
   <div class="fab-item" onclick="closeFab();importSetlist()"><span class="fab-item-icon" style="background:var(--green)">📥</span>Importar setlist</div>
   <div class="fab-item" onclick="closeFab();openBlock()"><span class="fab-item-icon" style="background:var(--azul)">📦</span>Novo bloco</div>
-  <div class="fab-item" onclick="closeFab();openBulk()"><span class="fab-item-icon" style="background:var(--ambar)">📋</span>Lista rápida</div>
+  <div class="fab-item" onclick="closeFab();openBulk()"><span class="fab-item-icon" style="background:var(--ambar)">📋</span>Adicionar itens em lista</div>
 </div>
 <button class="fab" id="fab" onclick="toggleFab()">+</button>
 
@@ -672,12 +677,13 @@ function isValidSetlist(data){
 // ── Aplica dados remotos na UI (sem disparar save) ─────────
 function _applyRemoteData(raw, showFlash){
   const normalized = normalizeData(raw);
-  // Só atualiza se for diferente do estado atual
   if(JSON.stringify(normalized) === JSON.stringify(D)) return;
-  hist.push(JSON.stringify(D));
-  if(hist.length > 50) hist.shift();
+  if(typeof hist !== "undefined" && D){
+    hist.push(JSON.stringify(D));
+    if(hist.length > 50) hist.shift();
+  }
   D = normalized;
-  lsSet(K, JSON.stringify(D)); // atualiza cache local
+  lsSet(K, JSON.stringify(D));
   renderSetlist();
   updateStats();
   updateSaveDot();
@@ -864,13 +870,13 @@ let D=loadData(), hist=[], histFwd=[], curLayout=lsGet(K+"_layout")||"full", dra
 function saveData(){
   const next = JSON.stringify(D);
   const prev = lsGet(K);
-  if(prev && prev !== next){
-    hist.push(prev);
+  if(prev !== next){
+    if(prev) hist.push(prev);           // guarda estado anterior no histórico
     if(hist.length > 50) hist.shift();
-    histFwd = [];
+    histFwd = [];                        // limpa redo ao salvar novo estado
   }
-  lsSet(K, next);           // cache local (funciona offline)
-  if(_fbEnabled) fbPush(D); // sincroniza Firebase
+  lsSet(K, next);
+  if(_fbEnabled) fbPush(D);
   updateStats();
   updateSaveDot();
 }
@@ -882,13 +888,17 @@ function undo(){
   if(!hist.length){flash("Nada para desfazer");return}
   histFwd.push(JSON.stringify(D));
   try{D=normalizeData(JSON.parse(hist.pop()))}catch(e){flash("⚠ Corrompido");return}
-  lsSet(K,JSON.stringify(D));renderSetlist();updateStats();flash("↩ Desfeito");
+  lsSet(K,JSON.stringify(D));
+  if(_fbEnabled) fbPush(D);
+  renderSetlist();updateStats();flash("↩ Desfeito");
 }
 function redo(){
   if(!histFwd.length){flash("Nada para refazer");return}
   hist.push(JSON.stringify(D));
   try{D=normalizeData(JSON.parse(histFwd.pop()))}catch(e){flash("⚠ Corrompido");return}
-  lsSet(K,JSON.stringify(D));renderSetlist();updateStats();flash("↪ Refeito");
+  lsSet(K,JSON.stringify(D));
+  if(_fbEnabled) fbPush(D);
+  renderSetlist();updateStats();flash("↪ Refeito");
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -987,9 +997,9 @@ function buildBlockHTML(b,compact){
       <button class="btn sm" data-action="dupblock" data-bid="${b.id}">⧉ Duplicar</button>
       <button class="btn sm danger" data-action="delblock" data-bid="${b.id}">✕ Apagar</button>
     </div>
-    ${!compact&&b.direction?`<div class="block-dir" contenteditable="true" data-field="direction" data-bid="${b.id}" data-ph="Direção artística…">${esc(b.direction)}</div>`:""}
+    ${!compact?`<div class="block-dir" contenteditable="true" data-field="direction" data-bid="${b.id}" data-ph="Direção artística…">${esc(b.direction||"")}</div>`:""}
     <div class="songs-list">${cards}</div>
-    <button class="btn-add-song" data-action="addsong" data-bid="${b.id}">＋ Adicionar música</button>
+    <button class="btn-add-song" data-action="addsong" data-bid="${b.id}">＋ Adicionar</button>
   </div>`;
 }
 
@@ -1008,7 +1018,7 @@ function buildSongCard(s,b,compact){
         ${!compact?`<div class="sc-sub">
           <span class="sc-key" contenteditable="true" data-field="key" data-bid="${b.id}" data-sid="${s.id}">${esc(s.key)}</span>
           <span class="sc-type-badge" style="background:${bg};color:${tc}">${esc(info.l)}</span>
-          ${s.note?`<span class="sc-note" contenteditable="true" data-field="note" data-bid="${b.id}" data-sid="${s.id}">${esc(s.note)}</span>`:""}
+          <span class="sc-note${s.note?"":" sc-note-empty"}" contenteditable="true" data-field="note" data-bid="${b.id}" data-sid="${s.id}" data-ph="nota…">${esc(s.note)}</span>
         </div>`:""}
       </div>
       <div class="sc-actions">
@@ -1080,21 +1090,22 @@ function saveSongField(bid,sid,field,val){
 function toggleSongDone(bid,sid){
   const b=D.blocks.find(x=>String(x.id)===String(bid));if(!b)return;
   const s=b.songs.find(x=>x.id===sid);if(!s)return;
-  s.done=!s.done;saveData();
+  s.done=!s.done;
+  // Atualização cirúrgica da UI — sem re-renderizar tudo
   const card=document.querySelector(`.song-card[data-drag-sid="${sid}"]`);
   if(card){
     card.classList.toggle("done-r",s.done);
     const btn=card.querySelector(".check-btn");
     if(btn){btn.classList.toggle("done-check",s.done);btn.textContent=s.done?"✓":"";}
     const nm=card.querySelector(".sc-name");if(nm)nm.style.textDecoration=s.done?"line-through":"";
-  } else {renderSetlist();}
-  updateStats();
+  }
+  saveData(); // saveData já chama updateStats()
 }
 function moveBlock(id,dir){
   const i=D.blocks.findIndex(b=>String(b.id)===String(id));if(i<0)return;
-  const j=i+dir;if(j<0||j>=D.blocks.length)return;
+  const j=i+dir;if(j<0||j>=D.blocks.length){flash("Sem bloco para trocar");return}
   [D.blocks[i],D.blocks[j]]=[D.blocks[j],D.blocks[i]];
-  saveData();renderSetlist();
+  saveData();renderSetlist();flash("↕ Bloco movido");
   document.querySelectorAll(".block-actions-menu.open").forEach(m=>m.classList.remove("open"));
 }
 function duplicateBlock(id){
@@ -1311,7 +1322,8 @@ function openModal(title,sub,body){
   },120);
 }
 function closeModal(e){
-  if(e&&e.target!==el("modalBg"))return;
+  // Fecha se: chamada diretamente (sem evento) OU clique no backdrop
+  if(e && e.target !== el("modalBg")) return;
   el("modalBg").classList.remove("open");
   document.body.style.overflow="";
 }
