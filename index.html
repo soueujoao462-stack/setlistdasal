@@ -463,45 +463,128 @@ body[data-layout="compact"] .sc-sub{display:none}
 
 <script>
 // ══════════════════════════════════════════════════════════════
-//  CONSTANTES
+//  SETLIST OFICIAL — extraída das screenshots da versão validada
+//  Esta é a fonte da verdade. Só altere via interface do sistema.
 // ══════════════════════════════════════════════════════════════
-const K        = "sdm_v5";
+const CANONICAL_SETLIST = {
+  meta:{
+    project:"Sal de Maré", subtitle:"Setlist Operacional",
+    duration:148, brand:"#1d4f7a", accent:"#d4870a", version:"v4"
+  },
+  blocks:[
+    {
+      id:1, name:"Abertura", type:"pico", duration:"20 min", energy:5,
+      direction:"Dominar o palco fisicamente antes de dominar com a música.",
+      songs:[
+        {id:"s1",  num:null, name:"Convenção rítmica",    key:"-",   note:"Percussão solo. Entradas por instrumento.", type:"transition", done:false},
+        {id:"s2",  num:1,    name:"Deusa do Amor",         key:"G",   note:"Primeira música cantada. Energia alta.",   type:"music",      done:false},
+        {id:"s3",  num:2,    name:"Love Love",              key:"D-",  note:"Transição fluida.",                        type:"music",      done:false}
+      ]
+    },
+    {
+      id:2, name:"Afrodisiaco", type:"pico", duration:"12 min", energy:4,
+      direction:"Fala de boas-vindas preparada. Máximo 90 segundos.",
+      songs:[
+        {id:"s4",  num:3,    name:"Já É",                  key:"G",   note:"Energia subindo. Groove marcado.",         type:"music",      done:false},
+        {id:"s5",  num:4,    name:"Topo do Mundo",          key:"B",   note:"Pico do bloco.",                          type:"music",      done:false},
+        {id:"s6",  num:null, name:"Transição + boas-vindas",key:"-",   note:"Percussão livre e fala.",                 type:"transition", done:false}
+      ]
+    },
+    {
+      id:3, name:"Filhos de Jorge", type:"pico", duration:"18 min", energy:4,
+      direction:"Três músicas de corpo e dança. Solo com calma e intenção.",
+      songs:[
+        {id:"s7",  num:5,    name:"Vai Que Cola",           key:"Fn",  note:"Entrada com voz limpa.",                  type:"music",      done:false},
+        {id:"s8",  num:6,    name:"Ela Tem o Dendê",        key:"C",   note:"Solo de guitarra com destaque.",          type:"music",      done:false},
+        {id:"s9",  num:7,    name:"Xuxu",                   key:"-",   note:"Encerramento explosivo.",                 type:"music",      done:false}
+      ]
+    },
+    {
+      id:4, name:"Ijexá", type:"afro", duration:"15 min", energy:3,
+      direction:"Descida intencional. Aqui o show ganha alma.",
+      songs:[
+        {id:"s10", num:8,    name:"E d'Oxum",               key:"C",   note:"Entrada suave. Iluminação muda.",         type:"music",      done:false},
+        {id:"s11", num:9,    name:"Banho de Folhas",         key:"C",   note:"Transição fluida.",                       type:"music",      done:false},
+        {id:"s12", num:10,   name:"Várias Queixas",          key:"G",   note:"Subida gradual.",                         type:"music",      done:false}
+      ]
+    },
+    {
+      id:5, name:"Olodum", type:"groove", duration:"10 min", energy:3,
+      direction:"Samba-reggae preciso para reconectar corpo e dança.",
+      songs:[
+        {id:"s13", num:11,   name:"Vem Meu Amor",           key:"Bb",  note:"Subida pós-ijexá.",                       type:"music",      done:false},
+        {id:"s14", num:12,   name:"Avisa Lá",               key:"C#m", note:"Preparar interação.",                     type:"music",      done:false}
+      ]
+    },
+    {
+      id:6, name:"Conexão + Brown", type:"groove", duration:"15 min", energy:4,
+      direction:"Interação planejada. Improviso demais desperdiça energia.",
+      songs:[
+        {id:"s15", num:null, name:"Interação com público",  key:"-",   note:"Texto preparado. Máx. 2 min.",            type:"talk",       done:false},
+        {id:"s16", num:13,   name:"Minha História",         key:"E",   note:"Entrar direto pós-interação.",            type:"music",      done:false},
+        {id:"s17", num:14,   name:"Você, o Amor e Eu",      key:"C",   note:"Encerramento emocional.",                 type:"music",      done:false}
+      ]
+    },
+    {
+      id:7, name:"Jaú + Timbalada", type:"groove", duration:"18 min", energy:4,
+      direction:"Crescente contínuo. Mudança de tom vira gatilho da virada.",
+      songs:[
+        {id:"s18", num:15,   name:"Cidade dos Poetas",      key:"G",   note:"Valorizar narrativa.",                    type:"music",      done:false},
+        {id:"s19", num:16,   name:"Flores da Favela",       key:"G",   note:"Transição fluida.",                       type:"music",      done:false},
+        {id:"s20", num:17,   name:"Beija-Flor",             key:"G",   note:"Timbalada clássico.",                     type:"music",      done:false},
+        {id:"s21", num:18,   name:"Coração de Bola",        key:"E",   note:"Gatilho da virada.",                      type:"music",      done:false}
+      ]
+    },
+    {
+      id:8, name:"Virada Afro-Latina", type:"pico", duration:"20 min", energy:5,
+      direction:"Maior bloco energético. Exige preparo físico e foco total.",
+      songs:[
+        {id:"s22", num:19,   name:"Namoro a Dois",          key:"F",   note:"Energia total.",                          type:"music",      done:false},
+        {id:"s23", num:20,   name:"Mania de Você",          key:"A",   note:"Clarear gênero.",                         type:"music",      done:false},
+        {id:"s24", num:21,   name:"Vumbora Amar",           key:"-",   note:"Salsa + pagode.",                         type:"music",      done:false},
+        {id:"s25", num:22,   name:"Selva Branca",           key:"G",   note:"Salsa + bachata.",                        type:"music",      done:false},
+        {id:"s26", num:23,   name:"Voa Voa",                key:"D",   note:"Público no máximo.",                      type:"music",      done:false},
+        {id:"s27", num:24,   name:"Que Nem Maré",           key:"Ab",  note:"Momento simbólico máximo.",               type:"cue",        done:false}
+      ]
+    },
+    {
+      id:9, name:"Padrinho", type:"final", duration:"12 min", energy:2,
+      direction:"Cumplicidade e respeito técnico.",
+      songs:[
+        {id:"s28", num:null, name:"Solo de timbau",         key:"-",   note:"Dar espaço ao percussionista.",           type:"solo",       done:false},
+        {id:"s29", num:25,   name:"Preciso Dormir, Princesa",key:"F",  note:"Menos é mais.",                           type:"music",      done:false},
+        {id:"s30", num:26,   name:"Vem",                    key:"-",   note:"Solo e presente para plateia.",           type:"music",      done:false}
+      ]
+    },
+    {
+      id:10, name:"SAMBAXE", type:"groove", duration:"10 min", energy:4,
+      direction:"",
+      songs:[
+        {id:"s31", num:null, name:"Mal acostumado",         key:"-",   note:"",                                        type:"music",      done:false}
+      ]
+    },
+    {
+      id:11, name:"Encerramento e Legado", type:"final", duration:"10 min", energy:4,
+      direction:"Declaração final de identidade.",
+      songs:[
+        {id:"s32", num:27,   name:"Se Me Chamar Eu Vou",    key:"Bb",  note:"Pedir coro.",                             type:"music",      done:false},
+        {id:"s33", num:28,   name:"Baianidade Nagô",        key:"E",   note:"Hino. Máxima presença.",                  type:"cue",        done:false},
+        {id:"s34", num:28,   name:"Raiz de Todo Bem",       key:"-",   note:"Encerramento absoluto.",                  type:"music",      done:false}
+      ]
+    }
+  ]
+};
+
+// ── CONSTANTES ─────────────────────────────────────────────────
+const K        = "sdm_v6"; // bumped: força leitura do Firebase (setlist v2 correta)
 const PASSWORD = "bandasaldemare2026";
 const K_AUTH   = "sdm_auth";
+const K_FBVER  = "sdm_fb_written"; // marca que a canonical já foi escrita no Firebase
 
 const BTYPES = {pico:{l:"Pico",c:"#1d4f7a"},afro:{l:"Afro",c:"#4a0e0e"},groove:{l:"Groove",c:"#8b6a14"},final:{l:"Final",c:"#163a5c"}};
 const ITYPES  = {music:{l:"Música",cls:""},solo:{l:"Solo",cls:"t-so"},transition:{l:"Transição",cls:"t-tr"},talk:{l:"Fala",cls:"t-ta"},break:{l:"Pausa",cls:"t-br"},cue:{l:"Cue ★",cls:"t-cu"}};
 const TYPE_COLORS = {music:"#e0edff",solo:"#d1fae5",transition:"#fef3c7",talk:"#ffe4e6",break:"#f3f4f6",cue:"#ede9fe"};
 const TYPE_TEXT   = {music:"#1e40af",solo:"#065f46",transition:"#92400e",talk:"#9f1239",break:"#374151",cue:"#4c1d95"};
-
-const DEFAULT_DATA = {
-  meta:{project:"Sal de Maré",subtitle:"Setlist Operacional",duration:145,brand:"#1d4f7a",accent:"#d4870a",version:"v4"},
-  blocks:[
-    {id:1,name:"Abertura",type:"pico",duration:"15 min",energy:5,direction:"Dominar o palco fisicamente antes de dominar com a música.",songs:[
-      {id:"s1",num:null,name:"Convenção rítmica",key:"-",note:"Percussão solo.",type:"transition",done:false},
-      {id:"s2",num:1,name:"Deusa do Amor",key:"G",note:"Energia alta.",type:"music",done:false},
-      {id:"s3",num:2,name:"Love Love",key:"-",note:"Transição fluida.",type:"music",done:false}
-    ]},
-    {id:2,name:"Afrodisíaco",type:"pico",duration:"12 min",energy:4,direction:"Fala de boas-vindas. Máximo 90 segundos.",songs:[
-      {id:"s4",num:3,name:"Já É",key:"G",note:"Groove marcado.",type:"music",done:false},
-      {id:"s5",num:4,name:"Topo do Mundo",key:"B",note:"Pico energético.",type:"music",done:false}
-    ]},
-    {id:3,name:"Raiz Afro",type:"afro",duration:"18 min",energy:4,direction:"Ijexá como identidade. Sem pressa.",songs:[
-      {id:"s6",num:5,name:"Suíte Ijexá",key:"Am",note:"4 min.",type:"transition",done:false},
-      {id:"s7",num:6,name:"Odoyá",key:"Am",note:"Voz e atabaque.",type:"music",done:false},
-      {id:"s8",num:7,name:"Canto de Iemanjá",key:"Dm",note:"Suave.",type:"music",done:false}
-    ]},
-    {id:4,name:"Virada",type:"groove",duration:"20 min",energy:5,direction:"Afro-latino em potência máxima.",songs:[
-      {id:"s9",num:8,name:"Baile Afro",key:"C",note:"Entrada forte.",type:"music",done:false},
-      {id:"s10",num:9,name:"Ritmo da Bahia",key:"F",note:"Clímax.",type:"music",done:false},
-      {id:"s11",num:10,name:"Solada",key:"E",note:"Solo percussão.",type:"solo",done:false}
-    ]},
-    {id:5,name:"Encerramento",type:"final",duration:"12 min",energy:3,direction:"Momento íntimo.",songs:[
-      {id:"s12",num:11,name:"Mar de Dentro",key:"D",note:"Acústico.",type:"music",done:false},
-      {id:"s13",num:12,name:"Até Voltar",key:"G",note:"Público canta.",type:"music",done:false}
-    ]}
-  ]
-};
 
 // ══════════════════════════════════════════════════════════════
 //  TELA DE SENHA
@@ -525,8 +608,25 @@ function checkPassword(){
 }
 
 // ══════════════════════════════════════════════════════════════
-//  FIREBASE — config hardcoded
+//  FIREBASE — REALTIME DATABASE
+//
+//  Arquitetura:
+//  1. fbInit()  → lê o banco UMA vez (once)
+//                 • vazio ou inválido → grava CANONICAL_SETLIST (só na 1ª vez)
+//                 • tem dados válidos → carrega no app
+//                 Depois liga o listener contínuo (onValue)
+//
+//  2. Listener  → SOMENTE lê e atualiza UI
+//                 Nunca chama saveData() nem fbPush()
+//                 Ignora eventos gerados pela própria escrita (_writing flag)
+//
+//  3. fbPush()  → ÚNICA função que escreve no banco
+//                 Chamada exclusivamente por saveData()
+//                 Seta _writing=true antes de escrever, limpa depois
+//
+//  Isso garante: sem loops, sem sobrescrita acidental, sem perda de dados
 // ══════════════════════════════════════════════════════════════
+
 const FB_CONFIG = {
   apiKey:            "AIzaSyBqCXkEpw0519J4YUj9Pu3mZ1llrofUPDI",
   authDomain:        "setlist-148d5.firebaseapp.com",
@@ -537,106 +637,158 @@ const FB_CONFIG = {
   databaseURL:       "https://setlist-148d5-default-rtdb.firebaseio.com"
 };
 
-let _fbDb = null, _fbRef = null, _fbEnabled = false;
-let _suppressNext = false; // evita loop: write→listen→write
+// Caminho fixo no banco — nunca mudar depois de gravado
+const FB_PATH = "setlist/v2";
 
+let _fbRef     = null;   // referência ao nó do banco
+let _fbEnabled = false;  // true quando a conexão está estabelecida
+let _writing   = false;  // true enquanto fbPush está escrevendo (bloqueia listener)
+
+// ── Indicador visual de status ─────────────────────────────
 function fbSetStatus(state, label){
   const dot = el("syncDot"), lbl = el("syncLabel");
-  if(!dot||!lbl) return;
+  if(!dot || !lbl) return;
   dot.className = "sync-dot " + state;
   lbl.textContent = label;
 }
 
+// ── Valida se os dados contêm músicas reais da banda ───────
+function isValidSetlist(data){
+  if(!data || !Array.isArray(data.blocks) || data.blocks.length === 0) return false;
+  const REAL_SONGS = new Set([
+    "Deusa do Amor","Love Love","Já É","Topo do Mundo",
+    "Vai Que Cola","Ela Tem o Dendê","Xuxu",
+    "E d'Oxum","Banho de Folhas","Várias Queixas",
+    "Vem Meu Amor","Avisa Lá","Minha História","Você, o Amor e Eu",
+    "Cidade dos Poetas","Flores da Favela","Beija-Flor","Coração de Bola",
+    "Namoro a Dois","Mania de Você","Vumbora Amar","Selva Branca",
+    "Voa Voa","Que Nem Maré","Preciso Dormir, Princesa","Vem",
+    "Mal acostumado","Se Me Chamar Eu Vou","Baianidade Nagô","Raiz de Todo Bem"
+  ]);
+  return data.blocks.flatMap(b => (b.songs||[]).map(s => s.name))
+                    .some(name => REAL_SONGS.has(name));
+}
+
+// ── Aplica dados remotos na UI (sem disparar save) ─────────
+function _applyRemoteData(raw, showFlash){
+  const normalized = normalizeData(raw);
+  // Só atualiza se for diferente do estado atual
+  if(JSON.stringify(normalized) === JSON.stringify(D)) return;
+  hist.push(JSON.stringify(D));
+  if(hist.length > 50) hist.shift();
+  D = normalized;
+  lsSet(K, JSON.stringify(D)); // atualiza cache local
+  renderSetlist();
+  updateStats();
+  updateSaveDot();
+  setText("nav-title", D.meta.project  || "Sal de Maré");
+  setText("nav-sub",   D.meta.subtitle || "Setlist Operacional");
+  setText("nav-badge", D.meta.version  || "v4");
+  if(showFlash) flash("🔄 Setlist atualizada");
+}
+
+// ── Liga o listener contínuo (SOMENTE leitura) ─────────────
+function _startListener(){
+  _fbRef.on("value", snapshot => {
+    // Ignora eventos gerados pela própria escrita do app
+    if(_writing) return;
+
+    const remote = snapshot.val();
+    if(!remote || !isValidSetlist(remote)) return; // ignora dados inválidos
+
+    _applyRemoteData(remote, true);
+  }, err => {
+    console.error("[Firebase listener]", err.code || err.message);
+    _fbEnabled = false;
+    fbSetStatus("offline","📴 offline");
+  });
+}
+
+// ── Inicialização principal ────────────────────────────────
 function fbInit(){
   try{
-    // Tenta reutilizar app existente ou criar nova
     let app;
     try{ app = firebase.app("sdm"); }
     catch(e){ app = firebase.initializeApp(FB_CONFIG, "sdm"); }
 
-    _fbDb  = firebase.database(app);
-    _fbRef = _fbDb.ref("setlist/v1");
+    const db  = firebase.database(app);
+    _fbRef    = db.ref(FB_PATH);
 
     fbSetStatus("syncing","conectando…");
-    let _firstLoad = true; // na primeira leitura, Firebase é sempre a fonte da verdade
 
-    // Escuta mudanças em tempo real de qualquer dispositivo
-    _fbRef.on("value", snapshot => {
-      if(_suppressNext){ _suppressNext = false; return; }
-      const remote = snapshot.val();
+    // ── PASSO 1: lê o banco UMA ÚNICA vez para decidir o que fazer ──
+    _fbRef.once("value")
+      .then(snapshot => {
+        const remote = snapshot.val();
 
-      if(!remote){
-        // Banco vazio: só sobe dados locais se tiver blocos reais (não exemplo)
-        const hasRealData = D.blocks.length > 0 && lsGet(K);
-        if(hasRealData){
-          fbPush(D);
+        if(!remote || !isValidSetlist(remote)){
+          // Banco vazio ou com dados inválidos:
+          // grava a setlist canonical como fonte oficial (ocorre só uma vez)
+          console.log("[Firebase] Banco vazio/inválido — gravando canonical");
+          const canonical = deepClone(CANONICAL_SETLIST);
+          return _fbRef.set(canonical).then(() => {
+            D = canonical;
+            lsSet(K, JSON.stringify(D));
+            renderSetlist();
+            updateStats();
+            updateSaveDot();
+            console.log("[Firebase] Canonical gravada com sucesso");
+          });
+        } else {
+          // Banco tem dados válidos: carrega no app sem sobrescrever
+          console.log("[Firebase] Dados válidos encontrados — carregando");
+          _applyRemoteData(remote, false);
         }
+      })
+      .then(() => {
+        // ── PASSO 2: depois da leitura inicial, liga o listener contínuo ──
         _fbEnabled = true;
-        _firstLoad = false;
         fbSetStatus("ok","🔥 ao vivo");
-        renderSetlist(); // atualiza empty state
-        return;
-      }
-
-      const normalized = normalizeData(remote);
-      // Na primeira leitura OU se há diferença: Firebase sempre vence
-      const isDifferent = _firstLoad || JSON.stringify(normalized) !== JSON.stringify(D);
-      if(isDifferent){
-        if(!_firstLoad){
-          hist.push(JSON.stringify(D));
-          if(hist.length > 50) hist.shift();
+        _startListener();
+      })
+      .catch(err => {
+        console.error("[Firebase init]", err.code || err.message);
+        if(String(err.code||"").includes("PERMISSION_DENIED")){
+          fbSetStatus("err","⚠ permissão negada");
+          flash("⚠ Configure as Regras do Realtime Database no Firebase Console");
+        } else {
+          fbSetStatus("err","⚠ sem conexão");
         }
-        D = normalized;
-        lsSet(K, JSON.stringify(D));
-        renderSetlist();
-        updateStats();
-        setText("nav-title", D.meta.project  || "Sal de Maré");
-        setText("nav-sub",   D.meta.subtitle || "Setlist Operacional");
-        setText("nav-badge", D.meta.version  || "v4");
-        if(!_firstLoad) flash("🔄 Atualizado em tempo real");
-      }
-      _firstLoad = false;
-      _fbEnabled = true;
-      fbSetStatus("ok","🔥 ao vivo");
-    }, err => {
-      const code = err.code || err.message || "desconhecido";
-      console.error("[Firebase] Erro:", code, err);
-      if(code.includes("PERMISSION_DENIED") || code.includes("permission")){
-        fbSetStatus("err","⚠ permissão negada");
-        setTimeout(()=> flash("⚠ Configure as Regras do Realtime Database no Firebase Console"), 500);
-      } else if(code.includes("network") || code.includes("offline")){
-        fbSetStatus("offline","📴 sem internet");
-      } else {
-        fbSetStatus("err","⚠ " + String(code).slice(0,24));
-      }
-      _firstLoad = false;
-      _fbEnabled = false;
-    });
+      });
 
-    // Online / offline — detecta conexão de rede
-    _fbDb.ref(".info/connected").on("value", snap => {
+    // Detecta estado de conexão de rede
+    db.ref(".info/connected").on("value", snap => {
       if(snap.val() === true){
         if(!_fbEnabled) fbSetStatus("syncing","reconectando…");
+        else            fbSetStatus("ok","🔥 ao vivo");
       } else {
-        _fbEnabled = false;
         fbSetStatus("offline","📴 offline");
       }
     });
 
   } catch(err){
-    console.error("[Firebase init]", err);
+    console.error("[Firebase init erro]", err);
     fbSetStatus("err","⚠ erro init");
   }
 }
 
+// ── Escrita no banco (chamada SOMENTE por saveData) ────────
 function fbPush(data){
-  if(!_fbRef) return;
-  _suppressNext = true;
-  _fbRef.set(data).catch(err => {
-    _suppressNext = false;
-    console.error("[Firebase push]", err);
-    fbSetStatus("err","⚠ falha ao salvar");
-  });
+  if(!_fbRef || !_fbEnabled) return;
+  _writing = true; // bloqueia o listener durante a escrita
+  _fbRef.set(data)
+    .then(() => {
+      fbSetStatus("ok","🔥 ao vivo");
+    })
+    .catch(err => {
+      console.error("[Firebase push]", err.code || err.message);
+      fbSetStatus("err","⚠ falha ao salvar");
+    })
+    .finally(() => {
+      // Libera o listener 300ms após a escrita
+      // (tempo suficiente para o Firebase processar e o listener disparar)
+      setTimeout(() => { _writing = false; }, 300);
+    });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -692,19 +844,16 @@ function normalizeData(src){
 }
 
 function loadData(){
-  // 1. Tenta localStorage
+  // Carrega do cache local (funciona offline enquanto Firebase conecta)
   try{
-    const r=lsGet(K);
+    const r = lsGet(K);
     if(r){
-      const parsed=JSON.parse(r);
-      if(parsed && Array.isArray(parsed.blocks)) return normalizeData(parsed);
+      const parsed = JSON.parse(r);
+      if(isValidSetlist(parsed)) return normalizeData(parsed);
     }
   }catch(e){}
-  // 2. Sem localStorage: retorna estado vazio (Firebase vai preencher)
-  return {
-    meta:{project:"Sal de Maré",subtitle:"Setlist Operacional",duration:0,brand:"#1d4f7a",accent:"#d4870a",version:"v4"},
-    blocks:[]
-  };
+  // Cache vazio ou inválido: usa canonical como ponto de partida offline
+  return deepClone(CANONICAL_SETLIST);
 }
 
 let D=loadData(), hist=[], histFwd=[], curLayout=lsGet(K+"_layout")||"full", dragState={};
@@ -1380,22 +1529,6 @@ function appStart(){
 //  BOOT — verifica senha salva ou mostra lockscreen
 // ══════════════════════════════════════════════════════════════
 (function boot(){
-  // Detecta e limpa dados de exemplo gravados em sessões anteriores.
-  // Identificador: bloco com nome "Abertura" e música "Deusa do Amor" = DEFAULT_DATA.
-  const raw = lsGet(K);
-  if(raw){
-    try{
-      const parsed = JSON.parse(raw);
-      const isExample = parsed?.blocks?.[0]?.name === "Abertura" &&
-                        parsed?.blocks?.[0]?.songs?.[1]?.name === "Deusa do Amor";
-      if(isExample){
-        console.log("[Boot] Dados de exemplo detectados no localStorage — limpando para carregar do Firebase");
-        lsSet(K,"");
-        D = loadData(); // recalcula como vazio
-      }
-    }catch(e){}
-  }
-
   if(lsGet(K_AUTH)==="1"){
     document.getElementById("lockScreen").classList.add("gone");
     appStart();
