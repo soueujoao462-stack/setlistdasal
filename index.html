@@ -549,28 +549,43 @@ function fbSetStatus(state, label){
 
 function fbInit(){
   try{
-    const app = firebase.initializeApp(FB_CONFIG);
+    // Tenta reutilizar app existente ou criar nova
+    let app;
+    try{ app = firebase.app("sdm"); }
+    catch(e){ app = firebase.initializeApp(FB_CONFIG, "sdm"); }
+
     _fbDb  = firebase.database(app);
     _fbRef = _fbDb.ref("setlist/v1");
 
     fbSetStatus("syncing","conectando…");
+    let _firstLoad = true; // na primeira leitura, Firebase é sempre a fonte da verdade
 
     // Escuta mudanças em tempo real de qualquer dispositivo
     _fbRef.on("value", snapshot => {
       if(_suppressNext){ _suppressNext = false; return; }
       const remote = snapshot.val();
+
       if(!remote){
-        // Banco vazio: sobe o estado local
+        // Banco vazio: só sobe dados locais se tiver blocos reais (não exemplo)
+        const hasRealData = D.blocks.length > 0 && lsGet(K);
+        if(hasRealData){
+          fbPush(D);
+        }
         _fbEnabled = true;
-        fbPush(D);
+        _firstLoad = false;
         fbSetStatus("ok","🔥 ao vivo");
+        renderSetlist(); // atualiza empty state
         return;
       }
+
       const normalized = normalizeData(remote);
-      const isDifferent = JSON.stringify(normalized) !== JSON.stringify(D);
+      // Na primeira leitura OU se há diferença: Firebase sempre vence
+      const isDifferent = _firstLoad || JSON.stringify(normalized) !== JSON.stringify(D);
       if(isDifferent){
-        hist.push(JSON.stringify(D));
-        if(hist.length > 50) hist.shift();
+        if(!_firstLoad){
+          hist.push(JSON.stringify(D));
+          if(hist.length > 50) hist.shift();
+        }
         D = normalized;
         lsSet(K, JSON.stringify(D));
         renderSetlist();
@@ -578,19 +593,30 @@ function fbInit(){
         setText("nav-title", D.meta.project  || "Sal de Maré");
         setText("nav-sub",   D.meta.subtitle || "Setlist Operacional");
         setText("nav-badge", D.meta.version  || "v4");
-        flash("🔄 Atualizado em tempo real");
+        if(!_firstLoad) flash("🔄 Atualizado em tempo real");
       }
+      _firstLoad = false;
       _fbEnabled = true;
       fbSetStatus("ok","🔥 ao vivo");
     }, err => {
-      console.error("[Firebase]", err);
-      fbSetStatus("err","⚠ erro Firebase");
+      const code = err.code || err.message || "desconhecido";
+      console.error("[Firebase] Erro:", code, err);
+      if(code.includes("PERMISSION_DENIED") || code.includes("permission")){
+        fbSetStatus("err","⚠ permissão negada");
+        setTimeout(()=> flash("⚠ Configure as Regras do Realtime Database no Firebase Console"), 500);
+      } else if(code.includes("network") || code.includes("offline")){
+        fbSetStatus("offline","📴 sem internet");
+      } else {
+        fbSetStatus("err","⚠ " + String(code).slice(0,24));
+      }
+      _firstLoad = false;
+      _fbEnabled = false;
     });
 
-    // Online / offline
+    // Online / offline — detecta conexão de rede
     _fbDb.ref(".info/connected").on("value", snap => {
       if(snap.val() === true){
-        fbSetStatus("ok","🔥 ao vivo");
+        if(!_fbEnabled) fbSetStatus("syncing","reconectando…");
       } else {
         _fbEnabled = false;
         fbSetStatus("offline","📴 offline");
@@ -599,7 +625,7 @@ function fbInit(){
 
   } catch(err){
     console.error("[Firebase init]", err);
-    fbSetStatus("err","⚠ erro config");
+    fbSetStatus("err","⚠ erro init");
   }
 }
 
@@ -639,30 +665,46 @@ function normalizeData(src){
   // Suporta formatos: exportSetlist v4 ({formatVersion,blocks}), backup v2 ({data,...}), direto
   if(src && src.formatVersion && src.blocks) src = {meta:src.meta, blocks:src.blocks};
   else if(src && src.data) src = src.data;
-  const base = deepClone(DEFAULT_DATA);
-  const out  = Object.assign(base, src||{});
-  out.meta   = Object.assign(deepClone(DEFAULT_DATA.meta), src?.meta||{});
-  if(Array.isArray(src?.blocks)){
-    out.blocks = src.blocks.map((b,i)=>({
-      id:b.id||(i+1),
-      name:unesc(b.name||"Bloco"),
-      type:b.type||"pico",
-      duration:unesc(b.duration||"10 min"),
-      energy:b.energy||3,
-      direction:unesc(b.direction||""),
-      songs:(b.songs||[]).map(normalizeSong)
-    }))
-  }
-  if(out.meta){
-    out.meta.project  = unesc(out.meta.project||"");
-    out.meta.subtitle = unesc(out.meta.subtitle||"");
-    out.meta.version  = unesc(out.meta.version||"");
-  }
-  return out;
+
+  // meta: mescla apenas os campos de meta, nunca os blocos de exemplo
+  const meta = Object.assign({
+    project:"Sal de Maré", subtitle:"Setlist Operacional",
+    duration:0, brand:"#1d4f7a", accent:"#d4870a", version:"v4"
+  }, src?.meta||{});
+  if(meta.project)  meta.project  = unesc(meta.project);
+  if(meta.subtitle) meta.subtitle = unesc(meta.subtitle);
+  if(meta.version)  meta.version  = unesc(meta.version);
+
+  // blocos: usa SOMENTE os blocos do src — nunca os blocos de exemplo
+  const blocks = Array.isArray(src?.blocks)
+    ? src.blocks.map((b,i)=>({
+        id:b.id||(i+1),
+        name:unesc(b.name||"Bloco"),
+        type:b.type||"pico",
+        duration:unesc(b.duration||"10 min"),
+        energy:b.energy||3,
+        direction:unesc(b.direction||""),
+        songs:(b.songs||[]).map(normalizeSong)
+      }))
+    : [];
+
+  return {meta, blocks};
 }
+
 function loadData(){
-  try{const r=lsGet(K);if(r)return normalizeData(JSON.parse(r));}catch(e){}
-  return deepClone(DEFAULT_DATA);
+  // 1. Tenta localStorage
+  try{
+    const r=lsGet(K);
+    if(r){
+      const parsed=JSON.parse(r);
+      if(parsed && Array.isArray(parsed.blocks)) return normalizeData(parsed);
+    }
+  }catch(e){}
+  // 2. Sem localStorage: retorna estado vazio (Firebase vai preencher)
+  return {
+    meta:{project:"Sal de Maré",subtitle:"Setlist Operacional",duration:0,brand:"#1d4f7a",accent:"#d4870a",version:"v4"},
+    blocks:[]
+  };
 }
 
 let D=loadData(), hist=[], histFwd=[], curLayout=lsGet(K+"_layout")||"full", dragState={};
@@ -757,7 +799,17 @@ function renderSetlist(){
   const container=el("setlistView");
   if(!container)return;
   if(!blocks.length){
-    container.innerHTML=`<div class="empty"><h3>Nenhum bloco encontrado</h3><p>Adicione um bloco ou ajuste o filtro.</p></div>`;
+    // Se Firebase ainda está conectando, mostra loading em vez de "nenhum bloco"
+    const isConnecting = !_fbEnabled && el("syncDot")?.classList.contains("syncing");
+    if(isConnecting && !q && ft==="all"){
+      container.innerHTML=`<div class="empty" id="loading-state">
+        <div style="font-size:32px;margin-bottom:10px;animation:spulse .8s ease-in-out infinite alternate">🔥</div>
+        <h3>Carregando setlist…</h3>
+        <p>Sincronizando com Firebase</p>
+      </div>`;
+    } else {
+      container.innerHTML=`<div class="empty"><h3>Nenhum bloco encontrado</h3><p>Adicione um bloco ou ajuste o filtro.</p></div>`;
+    }
     return;
   }
   container.innerHTML=blocks.map(b=>buildBlockHTML(b,compact)).join("");
@@ -1328,8 +1380,23 @@ function appStart(){
 //  BOOT — verifica senha salva ou mostra lockscreen
 // ══════════════════════════════════════════════════════════════
 (function boot(){
+  // Detecta e limpa dados de exemplo gravados em sessões anteriores.
+  // Identificador: bloco com nome "Abertura" e música "Deusa do Amor" = DEFAULT_DATA.
+  const raw = lsGet(K);
+  if(raw){
+    try{
+      const parsed = JSON.parse(raw);
+      const isExample = parsed?.blocks?.[0]?.name === "Abertura" &&
+                        parsed?.blocks?.[0]?.songs?.[1]?.name === "Deusa do Amor";
+      if(isExample){
+        console.log("[Boot] Dados de exemplo detectados no localStorage — limpando para carregar do Firebase");
+        lsSet(K,"");
+        D = loadData(); // recalcula como vazio
+      }
+    }catch(e){}
+  }
+
   if(lsGet(K_AUTH)==="1"){
-    // Já autenticado neste dispositivo
     document.getElementById("lockScreen").classList.add("gone");
     appStart();
   }
