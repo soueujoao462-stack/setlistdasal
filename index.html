@@ -393,6 +393,49 @@ body[data-layout="compact"] .sc-sub{display:none}
   white-space:nowrap;font-weight:500;max-width:calc(100vw - 32px);text-align:center;
 }
 .toast.on{opacity:1}
+
+/* ── EXPORT PDF / IMPRESSÃO ──────────────────────────── */
+#printSheet{display:none}
+@media print{
+  /* esconde toda a aplicação, mostra apenas a folha de impressão */
+  body > *{display:none !important}
+  body > #printSheet{display:block !important}
+  html,body{
+    background:#fff !important;color:#000 !important;
+    overflow:visible !important;height:auto !important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  @page{size:A4;margin:14mm 14mm 16mm}
+  #printSheet{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    color:#1a120a;font-size:11pt;line-height:1.4;
+  }
+  #printSheet .ps-head{border-bottom:2.5px solid #1d4f7a;padding-bottom:8px;margin-bottom:14px}
+  #printSheet .ps-kick{font-size:8pt;letter-spacing:.12em;text-transform:uppercase;color:#d4870a;font-weight:700}
+  #printSheet .ps-title{font-size:20pt;font-weight:800;color:#163a5c;margin:2px 0 1px}
+  #printSheet .ps-sub{font-size:10pt;color:#6b5740}
+  #printSheet .ps-meta{font-size:8.5pt;color:#6b5740;margin-top:6px;display:flex;gap:16px;flex-wrap:wrap}
+  #printSheet .ps-meta b{color:#1a120a;font-weight:700}
+  #printSheet .ps-block{margin:0 0 12px;break-inside:avoid;page-break-inside:avoid}
+  #printSheet .ps-bhead{
+    display:flex;align-items:baseline;gap:8px;
+    border-left:4px solid #1d4f7a;padding:3px 0 3px 9px;margin-bottom:4px;
+    background:#f3eddf;
+  }
+  #printSheet .ps-bname{font-size:12pt;font-weight:800;color:#163a5c}
+  #printSheet .ps-btype{font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:#1d4f7a;padding:1px 7px;border-radius:9px}
+  #printSheet .ps-bdur{font-size:8.5pt;color:#6b5740;margin-left:auto}
+  #printSheet table{width:100%;border-collapse:collapse}
+  #printSheet td{padding:3px 6px;vertical-align:top;border-bottom:.5px solid #e0d5bf;font-size:10pt}
+  #printSheet tr:last-child td{border-bottom:none}
+  #printSheet .ps-num{width:26px;font-weight:800;color:#d4870a;text-align:right}
+  #printSheet .ps-name{font-weight:600}
+  #printSheet .ps-name .ps-tag{font-weight:700;font-size:7.5pt;text-transform:uppercase;letter-spacing:.05em;color:#fff;padding:1px 6px;border-radius:8px;margin-right:6px;vertical-align:middle}
+  #printSheet .ps-key{width:54px;color:#1d4f7a;font-weight:700;text-align:center;white-space:nowrap}
+  #printSheet .ps-owner{width:90px;color:#6b5740;font-size:8.5pt;text-align:right}
+  #printSheet .ps-note{display:block;font-size:8.5pt;color:#6b5740;font-weight:400;margin-top:1px}
+  #printSheet .ps-foot{margin-top:16px;padding-top:8px;border-top:.5px solid #d8c9b0;font-size:8pt;color:#6b5740;display:flex;justify-content:space-between}
+}
 </style>
 </head>
 <body data-layout="full">
@@ -447,6 +490,7 @@ body[data-layout="compact"] .sc-sub{display:none}
     <button class="btn sm" onclick="redo()">↪ Refazer</button>
     <button class="btn sm" onclick="resetProgress()">◎ Zerar</button>
     <button class="btn sm" onclick="recalcDuration()">⏱ Recalc.</button>
+    <button class="btn sm" onclick="exportPDF()">🖨 PDF</button>
     <button class="btn sm" onclick="expSetlistCSV()">⬇ CSV</button>
     <button class="btn sm export" onclick="exportSetlist()">📤 Exportar</button>
     <button class="btn sm import-btn" onclick="importSetlist()">📥 Importar</button>
@@ -471,6 +515,7 @@ body[data-layout="compact"] .sc-sub{display:none}
 
 <div class="fab-overlay" id="fabOverlay" onclick="closeFab()"></div>
 <div class="fab-menu" id="fabMenu">
+  <div class="fab-item" onclick="closeFab();exportPDF()"><span class="fab-item-icon" style="background:var(--terra)">🖨</span>Exportar PDF (imprimir)</div>
   <div class="fab-item" onclick="closeFab();exportSetlist()"><span class="fab-item-icon" style="background:var(--azul)">📤</span>Exportar setlist</div>
   <div class="fab-item" onclick="closeFab();importSetlist()"><span class="fab-item-icon" style="background:var(--green)">📥</span>Importar setlist</div>
   <div class="fab-item" onclick="closeFab();openBlock()"><span class="fab-item-icon" style="background:var(--azul)">📦</span>Novo bloco</div>
@@ -1827,6 +1872,85 @@ function exportSetlist(){
     flash("✓ Setlist exportada!");
   } catch(err){flash("⚠ Erro ao exportar");}
 }
+// ── Exportar PDF (via impressão nativa — sem biblioteca externa) ──
+function _curVerName(){
+  return curVer==="base"
+    ? (VERS.baseName||"Base")
+    : (VERS.list.find(x=>x.id===curVer)?.name||"Versão");
+}
+function buildPrintSheet(){
+  const sheet=el("printSheet");
+  if(!sheet) return;
+  const songsAll=allSongs();
+  const totalDur=D.blocks.reduce((s,b)=>s+parseDur(b.duration),0);
+  const done=songsAll.filter(s=>s.done).length;
+  const now=new Date();
+  const dstr=now.toLocaleDateString("pt-BR")+" "+now.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  const proj=esc(D.meta.project||"Sal de Maré");
+  const sub=esc(D.meta.subtitle||"Setlist Operacional");
+
+  let html=""+
+    `<div class="ps-head">`+
+      `<div class="ps-kick">Repertório · ${esc(_curVerName())}</div>`+
+      `<div class="ps-title">${proj}</div>`+
+      `<div class="ps-sub">${sub}</div>`+
+      `<div class="ps-meta">`+
+        `<span><b>${D.blocks.length}</b> blocos</span>`+
+        `<span><b>${songsAll.length}</b> músicas</span>`+
+        `<span><b>${totalDur}</b> min</span>`+
+        `<span><b>${done}/${songsAll.length}</b> ensaiadas</span>`+
+      `</div>`+
+    `</div>`;
+
+  if(!D.blocks.length){
+    html+=`<div style="color:#6b5740;font-style:italic">Nenhum bloco neste repertório.</div>`;
+  }
+
+  D.blocks.forEach(b=>{
+    const bt=BTYPES[b.type]||BTYPES.pico;
+    html+=`<div class="ps-block">`+
+      `<div class="ps-bhead">`+
+        `<span class="ps-bname">${esc(b.name)}</span>`+
+        `<span class="ps-btype" style="background:${bt.c}">${esc(bt.l)}</span>`+
+        `<span class="ps-bdur">${esc(b.duration||"")}</span>`+
+      `</div>`;
+    const items=(b.songs||[]);
+    if(items.length){
+      html+=`<table>`;
+      items.forEach(s=>{
+        const it=ITYPES[s.type]||ITYPES.music;
+        const isMusic=s.type==="music";
+        const numCell=isMusic&&s.num!=null&&s.num!=="" ? esc(String(s.num)) : "";
+        const tag=isMusic ? "" : `<span class="ps-tag" style="background:${bt.c}">${esc(it.l)}</span>`;
+        const key=(isMusic&&s.key&&s.key!=="-") ? esc(s.key) : "";
+        const owner=s.owner ? esc(s.owner) : "";
+        const note=s.note ? `<span class="ps-note">${esc(s.note)}</span>` : "";
+        html+=`<tr>`+
+          `<td class="ps-num">${numCell}</td>`+
+          `<td class="ps-name">${tag}${esc(s.name)}${note}</td>`+
+          `<td class="ps-key">${key}</td>`+
+          `<td class="ps-owner">${owner}</td>`+
+        `</tr>`;
+      });
+      html+=`</table>`;
+    } else {
+      html+=`<div style="font-size:9pt;color:#6b5740;font-style:italic;padding:2px 6px">— sem itens —</div>`;
+    }
+    html+=`</div>`;
+  });
+
+  html+=`<div class="ps-foot"><span>${proj} · ${esc(_curVerName())}</span><span>Gerado em ${esc(dstr)}</span></div>`;
+  sheet.innerHTML=html;
+}
+function exportPDF(){
+  try{
+    if(!D || !Array.isArray(D.blocks)){flash("⚠ Nada para exportar");return;}
+    buildPrintSheet();
+    flash("🖨 Abrindo impressão — escolha \"Salvar como PDF\"");
+    setTimeout(()=>{ try{window.print();}catch(_){ flash("⚠ Impressão indisponível neste dispositivo"); } },180);
+  }catch(err){ flash("⚠ Erro ao gerar PDF"); }
+}
+
 function importSetlist(){
   const inp=document.createElement("input");
   inp.type="file";inp.accept=".json";inp.style.display="none";
@@ -1908,5 +2032,6 @@ function appStart(){
   // Senão: lockscreen já está visível, aguarda input do usuário
 })();
 </script>
+<div id="printSheet" aria-hidden="true"></div>
 </body>
 </html>
