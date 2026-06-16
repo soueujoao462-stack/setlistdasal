@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Sal de Maré — Ensaios</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+/* ── RESET ─────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;overflow-x:hidden}
+:root{
+  --azul:#1d4f7a;--azul-dk:#163a5c;--azul-lt:#e8f1fa;
+  --terra:#4a0e0e;--ambar:#d4870a;--creme:#f7edd8;
+  --creme-dk:#ede0c4;--creme-lt:#fdf8f0;--ink:#1a120a;
+  --muted:#6b5740;--line:#d8c9b0;--green:#1e7a50;
+  --r:12px;--shadow:0 2px 16px rgba(26,18,10,.08);
+  --shadow-md:0 6px 32px rgba(26,18,10,.13);
+  --nav-h:56px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px);
+  --safe-r:env(safe-area-inset-right,0px);
+}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:var(--creme);color:var(--ink);min-height:100vh;
+  -webkit-tap-highlight-color:transparent;overflow-x:hidden;
+  padding-left:var(--safe-l);padding-right:var(--safe-r);
+}
+button,input,select,textarea{font:inherit;-webkit-appearance:none;appearance:none;border-radius:0}
+input,textarea,select{font-size:16px!important}
+
+/* ── TELA DE SENHA ──────────────────────────────────── */
+#lockScreen{
+  position:fixed;inset:0;z-index:2000;
+  background:linear-gradient(150deg,var(--azul-dk) 0%,var(--azul) 55%,#c47209 100%);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+#lockScreen.gone{display:none}
+.lock-card{
+  background:#fff;border-radius:24px;padding:36px 28px 28px;
+  width:100%;max-width:380px;box-shadow:0 24px 64px rgba(0,0,0,.35);text-align:center;
+}
+.lock-wave{font-size:52px;margin-bottom:6px;line-height:1}
+.lock-title{font-size:22px;font-weight:800;color:var(--azul);margin-bottom:4px}
+.lock-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.5}
+.lock-inp{
+  width:100%;padding:14px 16px;border:2px solid var(--line);border-radius:12px;
+  font-size:16px;color:var(--ink);background:#fafaf8;text-align:center;
+  letter-spacing:2px;transition:border-color .15s;margin-bottom:14px;
+}
+.lock-inp:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(29,79,122,.1)}
+.lock-inp.shake{animation:shake .35s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.lock-btn{
+  width:100%;padding:14px;border-radius:12px;border:none;
+  background:var(--azul);color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:background .15s;
+}
+.lock-btn:active{background:var(--azul-dk)}
+.lock-err{font-size:12px;color:#b91c1c;margin-top:10px;min-height:18px}
+
+/* ── SYNC DOT ───────────────────────────────────────── */
+.sync-dot{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.sync-dot .sync-pulse{width:7px;height:7px;border-radius:50%;background:currentColor}
+.sync-dot.ok{background:rgba(30,122,80,.13);color:#1e7a50}
+.sync-dot.syncing{background:rgba(212,135,10,.14);color:#b06f08}
+.sync-dot.syncing .sync-pulse{animation:pulse 1.1s infinite}
+.sync-dot.offline,.sync-dot.err{background:rgba(185,28,28,.12);color:#b91c1c}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── NAV ────────────────────────────────────────────── */
+.nav{
+  position:sticky;top:0;z-index:60;height:var(--nav-h);
+  background:linear-gradient(120deg,var(--azul-dk),var(--azul));color:#fff;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;box-shadow:var(--shadow);
+}
+.nav-title{font-size:16px;font-weight:800;line-height:1.1}
+.nav-sub{font-size:11px;opacity:.82}
+.nav-right{display:flex;align-items:center;gap:8px}
+.nav-badge{font-size:10px;font-weight:700;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:10px}
+.icon-btn{background:rgba(255,255,255,.16);border:none;color:#fff;width:34px;height:34px;border-radius:9px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.icon-btn:active{background:rgba(255,255,255,.3)}
+
+/* ── TOOLBAR ────────────────────────────────────────── */
+.toolbar-wrap{position:sticky;top:var(--nav-h);z-index:50;background:var(--creme-lt);border-bottom:1px solid var(--line);box-shadow:0 1px 8px rgba(26,18,10,.05)}
+.toolbar-primary{padding:8px 14px;display:flex;align-items:center;gap:8px}
+.search-inp{flex:1;min-width:0;padding:9px 13px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.search-inp:focus{outline:none;border-color:var(--azul)}
+.filter-sel{padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);max-width:130px}
+.filter-sel:focus{outline:none;border-color:var(--azul)}
+.toolbar-toggle{width:40px;height:38px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-size:16px;cursor:pointer;flex-shrink:0}
+.toolbar-toggle.open{background:var(--azul);border-color:var(--azul);color:#fff}
+.toolbar-toggle:active{transform:scale(.94)}
+.toolbar-secondary{display:none;padding:0 14px 10px;flex-wrap:wrap;gap:6px}
+.toolbar-secondary.open{display:flex}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);background:#fff;color:var(--ink);font-size:14px;font-weight:600;cursor:pointer;transition:transform .08s,background .12s}
+.btn:active{transform:scale(.96)}
+.btn.sm{padding:7px 11px;font-size:12.5px}
+.btn.active{background:var(--azul);border-color:var(--azul);color:#fff}
+.btn.export{border-color:var(--azul);color:var(--azul)}
+.btn.import-btn{border-color:var(--green);color:var(--green)}
+.btn.primary{background:var(--azul);border-color:var(--azul);color:#fff}
+.btn.danger{border-color:#b91c1c;color:#b91c1c}
+.btn.danger:active{background:#b91c1c;color:#fff}
+
+/* ── MAIN / STATS ───────────────────────────────────── */
+.main{max-width:780px;margin:0 auto;padding:14px 14px calc(120px + var(--safe-b))}
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stat-card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:10px 8px;text-align:center;box-shadow:var(--shadow)}
+.stat-val{font-size:20px;font-weight:800;color:var(--azul);line-height:1}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+
+/* ── CARD DE ENSAIO (flashcard) ─────────────────────── */
+#board{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:620px){#board{grid-template-columns:1fr 1fr}}
+.rcard{
+  background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow);overflow:hidden;position:relative;
+  border-top:4px solid var(--azul);transition:box-shadow .15s,transform .08s;
+}
+.rcard:active{transform:scale(.995)}
+.rcard.st-done{border-top-color:var(--green)}
+.rcard.st-prog{border-top-color:var(--ambar)}
+.rcard.st-plan{border-top-color:var(--azul)}
+.rcard-head{padding:13px 15px 9px;cursor:pointer}
+.rcard-top{display:flex;align-items:flex-start;gap:8px;justify-content:space-between}
+.rcard-title{font-size:16px;font-weight:800;color:var(--ink);line-height:1.2;word-break:break-word}
+.rcard-date{font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rbadge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#fff;padding:3px 9px;border-radius:11px;white-space:nowrap;flex-shrink:0}
+.rbadge.st-plan{background:var(--azul)}
+.rbadge.st-prog{background:var(--ambar)}
+.rbadge.st-done{background:var(--green)}
+.rcard-when{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--azul-lt);color:var(--azul-dk)}
+.rcard-when.past{background:#f3f4f6;color:#6b7280}
+.rcard-when.today{background:#fef3c7;color:#92400e}
+.rcard-body{padding:0 15px 13px;display:none}
+.rcard.open .rcard-body{display:block}
+.rcard-chevron{font-size:13px;color:var(--muted);transition:transform .18s;margin-left:4px}
+.rcard.open .rcard-chevron{transform:rotate(180deg)}
+
+.rsec{margin-top:12px}
+.rsec-h{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ambar);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.song-row{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.song-row:last-child{border-bottom:none}
+.song-check{width:20px;height:20px;border:2px solid var(--line);border-radius:6px;flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;transition:background .12s,border-color .12s}
+.song-check.done{background:var(--green);border-color:var(--green)}
+.song-main{flex:1;min-width:0}
+.song-name{font-size:14px;font-weight:700;color:var(--ink)}
+.song-row.done .song-name{text-decoration:line-through;color:var(--muted)}
+.song-goal{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.song-del{background:none;border:none;color:#c4b59a;font-size:15px;cursor:pointer;padding:2px 4px;flex-shrink:0}
+.song-del:active{color:#b91c1c}
+
+.ideas-box{background:var(--creme-lt);border:1px solid var(--creme-dk);border-left:3px solid var(--ambar);border-radius:9px;padding:10px 12px;font-size:13px;color:var(--ink);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.ideas-empty{color:var(--muted);font-style:italic}
+
+.rprog{margin-top:12px}
+.rprog-head{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600}
+.rprog-track{height:7px;background:var(--creme-dk);border-radius:99px;overflow:hidden}
+.rprog-fill{height:100%;background:linear-gradient(90deg,var(--azul),var(--green));border-radius:99px;transition:width .3s}
+
+.rcard-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.rcard-actions .btn.sm{flex:1;justify-content:center;min-width:84px}
+
+.add-song-row{display:flex;gap:6px;margin-top:8px}
+.add-song-row input{flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;background:#fff}
+.add-song-row input:focus{outline:none;border-color:var(--azul)}
+.add-song-row .btn{padding:8px 12px}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-state .em-ic{font-size:48px;margin-bottom:12px}
+.empty-state .em-t{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.empty-state .em-s{font-size:13px;line-height:1.5}
+
+/* ── FAB ────────────────────────────────────────────── */
+.fab{position:fixed;right:calc(18px + var(--safe-r));bottom:calc(20px + var(--safe-b));width:58px;height:58px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--ambar),#b06f08);color:#fff;font-size:30px;font-weight:300;cursor:pointer;box-shadow:0 8px 24px rgba(176,111,8,.45);z-index:70;display:flex;align-items:center;justify-content:center;transition:transform .12s}
+.fab:active{transform:scale(.9)}
+.fab-overlay{position:fixed;inset:0;background:rgba(26,18,10,.35);z-index:65;display:none}
+.fab-overlay.on{display:block}
+.fab-menu{position:fixed;right:calc(18px + var(--safe-r));bottom:calc(90px + var(--safe-b));z-index:66;display:none;flex-direction:column;gap:8px;align-items:flex-end}
+.fab-menu.open{display:flex}
+.fab-item{display:flex;align-items:center;gap:10px;background:#fff;border-radius:24px;padding:9px 16px 9px 11px;font-size:14px;font-weight:600;color:var(--ink);box-shadow:var(--shadow-md);cursor:pointer;white-space:nowrap}
+.fab-item:active{transform:scale(.96)}
+.fab-item-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px}
+
+/* ── MODAL ──────────────────────────────────────────── */
+.modal-bg{position:fixed;inset:0;background:rgba(26,18,10,.45);z-index:300;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.on{display:flex}
+.modal{background:var(--creme-lt);width:100%;max-width:520px;border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,.3);animation:slideup .22s ease}
+@media(min-width:560px){.modal-bg{align-items:center}.modal{border-radius:20px}}
+@keyframes slideup{from{transform:translateY(40px);opacity:.5}to{transform:translateY(0);opacity:1}}
+.modal-handle{width:40px;height:4px;background:var(--line);border-radius:99px;margin:10px auto 0}
+.modal-top{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 18px 8px}
+.modal-top strong{font-size:17px;color:var(--ink);display:block}
+.modal-top span{font-size:12px;color:var(--muted)}
+.mc{background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;padding:4px 8px}
+#mBody{padding:4px 18px 20px}
+.field{padding:8px 0}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.field input,.field select,.field textarea{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(29,79,122,.1)}
+.field textarea{min-height:80px;resize:vertical;line-height:1.5}
+.mfooter{display:flex;gap:8px;padding-top:12px}
+.mfooter .btn{flex:1;justify-content:center}
+
+/* ── TOAST ──────────────────────────────────────────── */
+.toast{position:fixed;bottom:calc(80px + var(--safe-b));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;padding:10px 20px;border-radius:24px;box-shadow:var(--shadow-md);z-index:400;opacity:0;transition:opacity .18s;pointer-events:none;white-space:nowrap;font-weight:500;max-width:calc(100vw - 32px);text-align:center}
+.toast.on{opacity:1}
+
+/* ── EXPORT PDF / IMPRESSÃO ─────────────────────────── */
+#printSheet{display:none}
+@media print{
+  body > *{display:none !important}
+  body > #printSheet{display:block !important}
+  html,body{background:#fff !important;color:#000 !important;overflow:visible !important;height:auto !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4;margin:14mm 14mm 16mm}
+  #printSheet{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#1a120a;font-size:11pt;line-height:1.45}
+  #printSheet .ps-head{border-bottom:2.5px solid #1d4f7a;padding-bottom:8px;margin-bottom:14px}
+  #printSheet .ps-kick{font-size:8pt;letter-spacing:.12em;text-transform:uppercase;color:#d4870a;font-weight:700}
+  #printSheet .ps-title{font-size:20pt;font-weight:800;color:#163a5c;margin:2px 0 1px}
+  #printSheet .ps-sub{font-size:10.5pt;color:#6b5740}
+  #printSheet .ps-meta{font-size:8.5pt;color:#6b5740;margin-top:6px;display:flex;gap:16px;flex-wrap:wrap}
+  #printSheet .ps-meta b{color:#1a120a;font-weight:700}
+  #printSheet .ps-sec{margin:14px 0 0;break-inside:avoid;page-break-inside:avoid}
+  #printSheet .ps-sech{font-size:9pt;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:#1d4f7a;padding:3px 9px;border-radius:4px;display:inline-block;margin-bottom:6px}
+  #printSheet .ps-song{padding:5px 0;border-bottom:.5px solid #e0d5bf}
+  #printSheet .ps-song:last-child{border-bottom:none}
+  #printSheet .ps-sname{font-weight:700;font-size:10.5pt}
+  #printSheet .ps-sgoal{font-size:9pt;color:#444;margin-top:1px;white-space:pre-wrap}
+  #printSheet .ps-box{background:#f7edd8;border-left:3px solid #d4870a;padding:9px 12px;font-size:10pt;white-space:pre-wrap;border-radius:0 6px 6px 0}
+  #printSheet .ps-foot{margin-top:18px;padding-top:8px;border-top:.5px solid #d8c9b0;font-size:8pt;color:#6b5740;display:flex;justify-content:space-between}
+  #printSheet .ps-check{display:inline-block;width:11px;height:11px;border:1.4px solid #1d4f7a;border-radius:3px;margin-right:7px;vertical-align:middle}
+}
+</style>
+</head>
+<body data-layout="full">
+
+<!-- ══ TELA DE SENHA ══════════════════════════════════ -->
+<div id="lockScreen">
+  <div class="lock-card">
+    <div class="lock-wave">🌊</div>
+    <div class="lock-title">Sal de Maré</div>
+    <div class="lock-sub">Organizador de Ensaios<br>Digite a senha para continuar</div>
+    <input class="lock-inp" id="lockInp" type="password" placeholder="••••"
+      autocomplete="current-password"
+      onkeydown="if(event.key==='Enter')checkPassword()">
+    <button class="lock-btn" onclick="checkPassword()">Entrar →</button>
+    <div class="lock-err" id="lockErr"></div>
+  </div>
+</div>
+
+<!-- ══ APP ════════════════════════════════════════════ -->
+<nav class="nav">
+  <div class="nav-info">
+    <div class="nav-title" id="nav-title">Sal de Maré</div>
+    <div class="nav-sub" id="nav-sub">Organizador de Ensaios</div>
+  </div>
+  <div class="nav-right">
+    <span class="sync-dot syncing" id="syncDot"><span class="sync-pulse"></span><span id="syncLabel">conectando</span></span>
+    <span class="nav-badge" id="nav-badge">v1</span>
+    <button class="icon-btn" onclick="openSettings()">⋯</button>
+  </div>
+</nav>
+
+<div class="toolbar-wrap">
+  <div class="toolbar-primary">
+    <input class="search-inp" id="searchInp" placeholder="🔍 Buscar ensaio ou música..." oninput="render()" autocomplete="off" autocorrect="off" spellcheck="false">
+    <select class="filter-sel" id="filterStatus" onchange="render()">
+      <option value="all">Todos</option>
+      <option value="plan">Planejado</option>
+      <option value="prog">Em andamento</option>
+      <option value="done">Concluído</option>
+    </select>
+    <button class="toolbar-toggle" id="toolbarToggle" onclick="toggleToolbar()">☰</button>
+  </div>
+  <div class="toolbar-secondary" id="toolbarSecondary">
+    <button class="btn sm" onclick="setSort('date')" id="btn-sd">📅 Por data</button>
+    <button class="btn sm" onclick="setSort('created')" id="btn-sc">🆕 Recentes</button>
+    <button class="btn sm" onclick="undo()">↩ Desfazer</button>
+    <button class="btn sm" onclick="redo()">↪ Refazer</button>
+    <button class="btn sm export" onclick="exportData()">📤 Exportar</button>
+    <button class="btn sm import-btn" onclick="importData()">📥 Importar</button>
+    <span style="font-size:11px;color:var(--muted);align-self:center;margin-left:auto" id="save-dot"></span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="stats-bar">
+    <div class="stat-card"><div class="stat-val" id="st-total">—</div><div class="stat-lbl">Ensaios</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-prox">—</div><div class="stat-lbl">Próximos</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-done">—</div><div class="stat-lbl">Concluídos</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-songs">—</div><div class="stat-lbl">Músicas-alvo</div></div>
+  </div>
+  <div id="board"></div>
+</div>
+
+<div class="fab-overlay" id="fabOverlay" onclick="closeFab()"></div>
+<div class="fab-menu" id="fabMenu">
+  <div class="fab-item" onclick="closeFab();openNew()"><span class="fab-item-icon" style="background:var(--ambar)">＋</span>Novo ensaio</div>
+  <div class="fab-item" onclick="closeFab();exportData()"><span class="fab-item-icon" style="background:var(--azul)">📤</span>Exportar backup</div>
+  <div class="fab-item" onclick="closeFab();importData()"><span class="fab-item-icon" style="background:var(--green)">📥</span>Importar backup</div>
+</div>
+<button class="fab" id="fab" onclick="toggleFab()">+</button>
+
+<div class="modal-bg" id="modalBg" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-top"><div><strong id="mTitle">—</strong><span id="mSub"></span></div><button class="mc" onclick="closeModal()">✕</button></div>
+    <div id="mBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div id="printSheet" aria-hidden="true"></div>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  SAL DE MARÉ — ORGANIZADOR DE ENSAIOS
+//  Mesma arquitetura do app de Setlist: senha → Firebase (once →
+//  listener → push com flag) → cache localStorage → undo/redo.
+//  Nó próprio no banco: "ensaios/v1" (não toca a setlist).
+// ══════════════════════════════════════════════════════════════
+
+// ── Seed inicial (só na 1ª vez, banco vazio) ──────────────────
+const SEED = {
+  meta:{ project:"Sal de Maré", subtitle:"Organizador de Ensaios", version:"v1" },
+  rehearsals:[
+    {
+      id:"r_demo1", title:"Ensaio — Blocos de Abertura",
+      date:"", status:"plan", created:1,
+      focus:"Fechar os primeiros 45 minutos do show. Conquista e primeiro pico funcionando.",
+      songs:[
+        {id:"g1", name:"Deusa do Amor", goal:"Afinar harmonias vocais e definir os coros do refrão.", done:false},
+        {id:"g2", name:"Topo do Mundo", goal:"Marcar o pico do bloco e ensaiar a saída para a transição percussiva.", done:false},
+        {id:"g3", name:"Convenção rítmica", goal:"Definir quantos compassos e qual instrumento entra primeiro.", done:false}
+      ],
+      ideas:"Testar abrir com a percussão sozinha por 8 compassos antes de qualquer nota harmônica. Anotar arranjo no papel impresso e transferir pro setlist depois."
+    }
+  ]
+};
+
+// ── CONSTANTES ────────────────────────────────────────────────
+const K        = "sdm_ens_v1";
+const PASSWORD = "0802";
+const K_AUTH   = "sdm_ens_auth";
+const K_SORT   = K + "_sort";
+
+const STATUS = {
+  plan:{l:"Planejado", c:"st-plan"},
+  prog:{l:"Em andamento", c:"st-prog"},
+  done:{l:"Concluído", c:"st-done"}
+};
+
+// ── Estado ────────────────────────────────────────────────────
+let D = null;               // {meta, rehearsals:[]}
+let hist = [], histFwd = []; // undo/redo
+let sortMode = "date";
+let openIds = new Set();     // cards expandidos
+
+// ══════════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════════
+function lsGet(k){try{return localStorage.getItem(k)||"";}catch(e){return""}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function deepClone(v){try{return JSON.parse(JSON.stringify(v));}catch(e){return v}}
+function uid(p){return(p||"x")+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function unesc(s){return String(s==null?"":s).replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&")}
+function el(id){return document.getElementById(id)}
+function setText(id,v){const e=el(id);if(e)e.textContent=v}
+function flash(msg){const t=el("toast");if(!t)return;t.textContent=msg;t.classList.add("on");clearTimeout(window._ft);window._ft=setTimeout(()=>t.classList.remove("on"),2400)}
+
+// ── Datas ─────────────────────────────────────────────────────
+function todayISO(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");}
+function fmtDate(iso){
+  if(!iso) return "Sem data";
+  const p=String(iso).split("-"); if(p.length!==3) return iso;
+  const dias=["dom","seg","ter","qua","qui","sex","sáb"];
+  const meses=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  const d=new Date(+p[0],+p[1]-1,+p[2]);
+  if(isNaN(d)) return iso;
+  return `${dias[d.getDay()]}, ${p[2]} ${meses[+p[1]-1]} ${p[0]}`;
+}
+function whenTag(iso){
+  if(!iso) return null;
+  const t=todayISO();
+  if(iso===t) return {l:"Hoje", cls:"today"};
+  if(iso<t)   return {l:"Passado", cls:"past"};
+  // dias restantes
+  const a=new Date(iso), b=new Date(t);
+  const diff=Math.round((a-b)/86400000);
+  return {l:(diff===1?"Amanhã":"Em "+diff+" dias"), cls:""};
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TELA DE SENHA
+// ══════════════════════════════════════════════════════════════
+function checkPassword(){
+  const val=el("lockInp").value;
+  if(val===PASSWORD){
+    lsSet(K_AUTH,"1");
+    el("lockScreen").classList.add("gone");
+    appStart();
+  } else {
+    const inp=el("lockInp"), err=el("lockErr");
+    err.textContent="Senha incorreta. Tente novamente.";
+    inp.value=""; inp.classList.remove("shake"); void inp.offsetWidth; inp.classList.add("shake");
+    setTimeout(()=>{err.textContent="";inp.classList.remove("shake");},2000);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  NORMALIZAÇÃO
+// ══════════════════════════════════════════════════════════════
+function normSong(s){
+  return {
+    id:s && s.id ? String(s.id) : uid("g"),
+    name:unesc(s && s.name || "").trim(),
+    goal:unesc(s && s.goal || ""),
+    done:Boolean(s && s.done)
+  };
+}
+function normReh(r,i){
+  const st=(r && STATUS[r.status]) ? r.status : "plan";
+  return {
+    id:r && r.id ? String(r.id) : uid("r"),
+    title:unesc(r && r.title || "Ensaio").trim() || "Ensaio",
+    date:(r && typeof r.date==="string") ? r.date : "",
+    status:st,
+    created:(r && Number(r.created)) || (Date.now()+i),
+    focus:unesc(r && r.focus || ""),
+    ideas:unesc(r && r.ideas || ""),
+    songs:Array.isArray(r && r.songs) ? r.songs.map(normSong) : []
+  };
+}
+function normData(src){
+  if(src && src.formatVersion && src.rehearsals) src={meta:src.meta,rehearsals:src.rehearsals};
+  else if(src && src.data) src=src.data;
+  const meta=Object.assign({project:"Sal de Maré",subtitle:"Organizador de Ensaios",version:"v1"}, src&&src.meta||{});
+  if(meta.project) meta.project=unesc(meta.project);
+  if(meta.subtitle) meta.subtitle=unesc(meta.subtitle);
+  const rehearsals=Array.isArray(src&&src.rehearsals)?src.rehearsals.map(normReh):[];
+  return {meta,rehearsals};
+}
+function isValidData(d){ return d && Array.isArray(d.rehearsals); }
+
+// ══════════════════════════════════════════════════════════════
+//  PERSISTÊNCIA + UNDO/REDO
+// ══════════════════════════════════════════════════════════════
+function loadData(){
+  try{ const r=lsGet(K); if(r){ const p=normData(JSON.parse(r)); if(isValidData(p)) return p; } }catch(e){}
+  return null;
+}
+function pushHist(){
+  if(!D) return;
+  hist.push(JSON.stringify(D));
+  if(hist.length>60) hist.shift();
+  histFwd=[];
+}
+function saveData(skipHist){
+  if(!skipHist) {} // hist é empurrado pelo chamador antes de mutar
+  lsSet(K, JSON.stringify(D));
+  fbPush(D);
+  updateSaveDot();
+}
+function updateSaveDot(){ const d=el("save-dot"); if(d) d.textContent="✓ salvo"; }
+function _restore(json){
+  try{ D=normData(JSON.parse(json)); }catch(e){return;}
+  lsSet(K, JSON.stringify(D));
+  render(); fbPush(D);
+}
+function undo(){
+  if(!hist.length){flash("Nada para desfazer");return;}
+  histFwd.push(JSON.stringify(D));
+  _restore(hist.pop());
+  flash("↩ Desfeito");
+}
+function redo(){
+  if(!histFwd.length){flash("Nada para refazer");return;}
+  hist.push(JSON.stringify(D));
+  _restore(histFwd.pop());
+  flash("↪ Refeito");
+}
+// mutador central: empurra histórico, aplica fn, salva e renderiza
+function mutate(fn){
+  pushHist();
+  fn();
+  lsSet(K, JSON.stringify(D));
+  fbPush(D);
+  updateSaveDot();
+  render();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  FIREBASE — REALTIME DATABASE (nó próprio: ensaios/v1)
+// ══════════════════════════════════════════════════════════════
+const FB_CONFIG = {
+  apiKey:            "AIzaSyBqCXkEpw0519J4YUj9Pu3mZ1llrofUPDI",
+  authDomain:        "setlist-148d5.firebaseapp.com",
+  projectId:         "setlist-148d5",
+  storageBucket:     "setlist-148d5.firebasestorage.app",
+  messagingSenderId: "590729061244",
+  appId:             "1:590729061244:web:8083a8d8daf68511a2faf9",
+  databaseURL:       "https://setlist-148d5-default-rtdb.firebaseio.com"
+};
+const FB_PATH = "ensaios/v1";
+let _fbRef=null, _fbEnabled=false, _writing=false;
+
+function fbSetStatus(state,label){
+  const dot=el("syncDot"), lbl=el("syncLabel");
+  if(!dot||!lbl) return;
+  dot.className="sync-dot "+state; lbl.textContent=label;
+}
+function _applyRemote(raw){
+  const norm=normData(raw);
+  if(JSON.stringify(norm)===JSON.stringify(D)) return;
+  D=norm; lsSet(K, JSON.stringify(D));
+  render();
+}
+function _startListener(){
+  if(!_fbRef) return;
+  _fbRef.on("value", snap=>{
+    if(_writing) return;        // ignora eco da própria escrita
+    const remote=snap.val();
+    if(remote && isValidData(remote)) _applyRemote(remote);
+  });
+}
+function fbInit(){
+  try{
+    let app; try{app=firebase.app("sdmEns");}catch(e){app=firebase.initializeApp(FB_CONFIG,"sdmEns");}
+    const db=firebase.database(app);
+    _fbRef=db.ref(FB_PATH);
+    fbSetStatus("syncing","conectando…");
+    _fbRef.once("value").then(snap=>{
+      const remote=snap.val();
+      if(!remote || !isValidData(remote)){
+        const seed = D && D.rehearsals && D.rehearsals.length ? deepClone(D) : deepClone(SEED);
+        return _fbRef.set(seed).then(()=>{ D=normData(seed); lsSet(K,JSON.stringify(D)); render(); });
+      } else {
+        _applyRemote(remote);
+      }
+    }).then(()=>{
+      _fbEnabled=true; fbSetStatus("ok","🔥 ao vivo"); _startListener();
+    }).catch(err=>{
+      console.error("[FB init]",err.code||err.message);
+      if(String(err.code||"").includes("PERMISSION_DENIED")){ fbSetStatus("err","⚠ permissão negada"); flash("⚠ Configure as Regras do Realtime Database"); }
+      else fbSetStatus("err","⚠ sem conexão");
+    });
+    db.ref(".info/connected").on("value", s=>{
+      if(s.val()===true){ fbSetStatus(_fbEnabled?"ok":"syncing", _fbEnabled?"🔥 ao vivo":"reconectando…"); }
+      else fbSetStatus("offline","📴 offline");
+    });
+  }catch(err){ console.error("[FB erro]",err); fbSetStatus("err","⚠ erro init"); }
+}
+function fbPush(data){
+  if(!_fbRef || !_fbEnabled) return;
+  _writing=true;
+  _fbRef.set(data)
+    .then(()=>fbSetStatus("ok","🔥 ao vivo"))
+    .catch(err=>{ console.error("[FB push]",err.code||err.message); fbSetStatus("err","⚠ falha ao salvar"); })
+    .finally(()=>{ setTimeout(()=>{_writing=false;},300); });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════════════
+function songDone(r){ return r.songs.filter(s=>s.done).length; }
+function sortedRehearsals(){
+  const arr=D.rehearsals.slice();
+  if(sortMode==="created"){ arr.sort((a,b)=>(b.created||0)-(a.created||0)); }
+  else {
+    // por data: com data primeiro (asc por proximidade), sem data ao fim
+    arr.sort((a,b)=>{
+      if(!a.date && !b.date) return (b.created||0)-(a.created||0);
+      if(!a.date) return 1;
+      if(!b.date) return -1;
+      return a.date<b.date ? -1 : a.date>b.date ? 1 : 0;
+    });
+  }
+  return arr;
+}
+function updateStats(){
+  const all=D.rehearsals;
+  const t=todayISO();
+  const prox=all.filter(r=>r.date && r.date>=t && r.status!=="done").length;
+  const done=all.filter(r=>r.status==="done").length;
+  const songs=all.reduce((s,r)=>s+r.songs.length,0);
+  setText("st-total", all.length);
+  setText("st-prox", prox);
+  setText("st-done", done);
+  setText("st-songs", songs);
+}
+function matchesFilter(r){
+  const q=(el("searchInp")?.value||"").trim().toLowerCase();
+  const fs=el("filterStatus")?.value||"all";
+  if(fs!=="all" && r.status!==fs) return false;
+  if(!q) return true;
+  const hay=[r.title,r.focus,r.ideas].concat(r.songs.map(s=>s.name+" "+s.goal)).join(" ").toLowerCase();
+  return hay.includes(q);
+}
+function render(){
+  if(!D) return;
+  updateStats();
+  const board=el("board");
+  const list=sortedRehearsals().filter(matchesFilter);
+  if(!D.rehearsals.length){
+    board.innerHTML=`<div class="empty-state"><div class="em-ic">🎶</div><div class="em-t">Nenhum ensaio ainda</div><div class="em-s">Toque no botão <b>+</b> para criar o primeiro card de ensaio:<br>data, músicas-alvo, objetivos e ideias.</div></div>`;
+    return;
+  }
+  if(!list.length){
+    board.innerHTML=`<div class="empty-state"><div class="em-ic">🔍</div><div class="em-t">Nada encontrado</div><div class="em-s">Nenhum ensaio bate com o filtro/busca atual.</div></div>`;
+    return;
+  }
+  board.innerHTML=list.map(buildCard).join("");
+}
+function buildCard(r){
+  const st=STATUS[r.status]||STATUS.plan;
+  const open=openIds.has(r.id);
+  const total=r.songs.length, done=songDone(r);
+  const pct=total?Math.round(done/total*100):0;
+  const wt=whenTag(r.date);
+  return `<div class="rcard ${st.c}${open?" open":""}" data-rid="${esc(r.id)}">`+
+    `<div class="rcard-head" data-toggle="${esc(r.id)}">`+
+      `<div class="rcard-top">`+
+        `<div style="flex:1;min-width:0">`+
+          `<div class="rcard-title">${esc(r.title)}</div>`+
+          `<div class="rcard-date">📅 ${esc(fmtDate(r.date))}`+
+            `${wt?` <span class="rcard-when ${wt.cls}">${esc(wt.l)}</span>`:""}`+
+          `</div>`+
+        `</div>`+
+        `<span class="rbadge ${st.c}">${esc(st.l)}</span>`+
+        `<span class="rcard-chevron">▾</span>`+
+      `</div>`+
+    `</div>`+
+    `<div class="rcard-body">`+
+      (r.focus?`<div class="rsec"><div class="rsec-h">🎯 Foco do ensaio</div><div class="ideas-box">${esc(r.focus)}</div></div>`:"")+
+      `<div class="rsec"><div class="rsec-h">🎵 Músicas-alvo (${done}/${total})</div>`+
+        (total?r.songs.map(s=>buildSong(r.id,s)).join(""):`<div class="ideas-box ideas-empty">Nenhuma música definida ainda.</div>`)+
+        `<div class="add-song-row">`+
+          `<input id="addsong_${esc(r.id)}" placeholder="+ Adicionar música-alvo" onkeydown="if(event.key==='Enter')addSong('${esc(r.id)}')">`+
+          `<button class="btn sm primary" onclick="addSong('${esc(r.id)}')">Add</button>`+
+        `</div>`+
+      `</div>`+
+      `<div class="rsec"><div class="rsec-h">💡 Ideias / arranjo</div>`+
+        `<div class="ideas-box${r.ideas?"":" ideas-empty"}">${r.ideas?esc(r.ideas):"Sem anotações. Toque em Editar para adicionar ideias de arranjo, referências, lembretes."}</div>`+
+      `</div>`+
+      (total?`<div class="rprog"><div class="rprog-head"><span>Progresso do ensaio</span><span>${pct}%</span></div><div class="rprog-track"><div class="rprog-fill" style="width:${pct}%"></div></div></div>`:"")+
+      `<div class="rcard-actions">`+
+        `<button class="btn sm" onclick="cycleStatus('${esc(r.id)}')">🔄 Status</button>`+
+        `<button class="btn sm" onclick="openEdit('${esc(r.id)}')">✎ Editar</button>`+
+        `<button class="btn sm" onclick="exportPDF('${esc(r.id)}')">🖨 PDF</button>`+
+        `<button class="btn sm" onclick="duplicateReh('${esc(r.id)}')">⎘ Duplicar</button>`+
+        `<button class="btn sm danger" onclick="removeReh('${esc(r.id)}')">✕ Apagar</button>`+
+      `</div>`+
+    `</div>`+
+  `</div>`;
+}
+function buildSong(rid,s){
+  return `<div class="song-row${s.done?" done":""}">`+
+    `<div class="song-check${s.done?" done":""}" data-songdone="${esc(rid)}|${esc(s.id)}">${s.done?"✓":""}</div>`+
+    `<div class="song-main">`+
+      `<div class="song-name">${esc(s.name)}</div>`+
+      (s.goal?`<div class="song-goal">${esc(s.goal)}</div>`:"")+
+    `</div>`+
+    `<button class="song-del" data-songdel="${esc(rid)}|${esc(s.id)}" title="Remover">✕</button>`+
+  `</div>`;
+}
+
+// ── Delegação de eventos (toggle card, check música, del música) ──
+document.addEventListener("click", e=>{
+  const tog=e.target.closest("[data-toggle]");
+  if(tog && !e.target.closest(".rcard-actions") && !e.target.closest(".add-song-row")){
+    const id=tog.getAttribute("data-toggle");
+    if(openIds.has(id)) openIds.delete(id); else openIds.add(id);
+    const card=tog.closest(".rcard"); if(card) card.classList.toggle("open");
+    return;
+  }
+  const chk=e.target.closest("[data-songdone]");
+  if(chk){ const [rid,sid]=chk.getAttribute("data-songdone").split("|"); toggleSong(rid,sid); return; }
+  const del=e.target.closest("[data-songdel]");
+  if(del){ const [rid,sid]=del.getAttribute("data-songdel").split("|"); delSong(rid,sid); return; }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  AÇÕES SOBRE ENSAIOS
+// ══════════════════════════════════════════════════════════════
+function findReh(id){ return D.rehearsals.find(r=>r.id===id); }
+
+function toggleSong(rid,sid){
+  mutate(()=>{ const r=findReh(rid); if(!r)return; const s=r.songs.find(x=>x.id===sid); if(s) s.done=!s.done; });
+}
+function delSong(rid,sid){
+  const r=findReh(rid); if(!r) return;
+  const s=r.songs.find(x=>x.id===sid);
+  if(!confirm(`Remover "${s?s.name:"esta música"}" deste ensaio?`)) return;
+  mutate(()=>{ r.songs=r.songs.filter(x=>x.id!==sid); });
+  flash("Música removida");
+}
+function addSong(rid){
+  const inp=el("addsong_"+rid);
+  const name=inp ? inp.value.trim() : "";
+  if(!name){flash("Digite o nome da música");return;}
+  openIds.add(rid);
+  mutate(()=>{ const r=findReh(rid); if(r) r.songs.push({id:uid("g"),name,goal:"",done:false}); });
+  // foco de volta no input recriado
+  setTimeout(()=>{ const ni=el("addsong_"+rid); if(ni) ni.focus(); },30);
+}
+function cycleStatus(rid){
+  const order=["plan","prog","done"];
+  mutate(()=>{ const r=findReh(rid); if(!r)return; const i=order.indexOf(r.status); r.status=order[(i+1)%order.length]; });
+  const r=findReh(rid);
+  flash("Status: "+(STATUS[r.status]?.l||r.status));
+}
+function duplicateReh(rid){
+  const r=findReh(rid); if(!r) return;
+  openIds.add(r.id);
+  mutate(()=>{
+    const copy=deepClone(r);
+    copy.id=uid("r"); copy.title=r.title+" (cópia)"; copy.created=Date.now();
+    copy.status="plan";
+    copy.songs=copy.songs.map(s=>({...s,id:uid("g"),done:false}));
+    const idx=D.rehearsals.findIndex(x=>x.id===rid);
+    D.rehearsals.splice(idx+1,0,copy);
+    openIds.add(copy.id);
+  });
+  flash("✓ Ensaio duplicado");
+}
+function removeReh(rid){
+  const r=findReh(rid); if(!r) return;
+  if(!confirm(`Apagar o ensaio "${r.title}"? Esta ação não pode ser desfeita pela tela (use Desfazer logo após, se precisar).`)) return;
+  mutate(()=>{ D.rehearsals=D.rehearsals.filter(x=>x.id!==rid); openIds.delete(rid); });
+  flash("✕ Ensaio apagado");
+}
+
+// ── Modais: novo / editar ─────────────────────────────────────
+function openModal(title,sub,body){
+  setText("mTitle",title); setText("mSub",sub||"");
+  el("mBody").innerHTML=body; el("modalBg").classList.add("on");
+}
+function closeModal(e){
+  if(e && e.target!==el("modalBg")) return;
+  el("modalBg").classList.remove("on");
+}
+function mfooter(fn,label){
+  return `<div class="mfooter"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="${fn}">${label||"Salvar"}</button></div>`;
+}
+function openNew(){
+  openModal("＋ Novo ensaio","Crie um card de ensaio",
+    `<div class="field"><label>Título</label><input id="f_title" placeholder="ex: Ensaio — Bloco Afro" autocomplete="off"></div>`+
+    `<div class="field"><label>Data</label><input id="f_date" type="date" value="${esc(todayISO())}"></div>`+
+    `<div class="field"><label>Foco do ensaio</label><textarea id="f_focus" placeholder="O que se quer alcançar neste ensaio?"></textarea></div>`+
+    `<div class="field"><label>Músicas-alvo (uma por linha)</label><textarea id="f_songs" placeholder="Deusa do Amor&#10;Topo do Mundo&#10;Convenção rítmica"></textarea></div>`+
+    `<div class="field"><label>Ideias / arranjo</label><textarea id="f_ideas" placeholder="Anotações, referências, ideias de arranjo..."></textarea></div>`+
+    mfooter("saveNew()","Criar ensaio")
+  );
+  setTimeout(()=>{ const t=el("f_title"); if(t) t.focus(); },60);
+}
+function saveNew(){
+  const title=el("f_title")?.value.trim();
+  if(!title){flash("Título obrigatório");return;}
+  const date=el("f_date")?.value||"";
+  const focus=el("f_focus")?.value||"";
+  const ideas=el("f_ideas")?.value||"";
+  const songLines=(el("f_songs")?.value||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  const songs=songLines.map(n=>({id:uid("g"),name:n,goal:"",done:false}));
+  const reh={id:uid("r"),title,date,status:"plan",created:Date.now(),focus,ideas,songs};
+  mutate(()=>{ D.rehearsals.push(reh); openIds.add(reh.id); });
+  closeModal();
+  flash("✓ Ensaio criado");
+}
+function openEdit(rid){
+  const r=findReh(rid); if(!r) return;
+  const songsText=r.songs.map(s=>s.goal?`${s.name} :: ${s.goal}`:s.name).join("\n");
+  openModal("✎ Editar ensaio","",
+    `<div class="field"><label>Título</label><input id="e_title" value="${esc(r.title)}"></div>`+
+    `<div class="field"><label>Data</label><input id="e_date" type="date" value="${esc(r.date)}"></div>`+
+    `<div class="field"><label>Status</label><select id="e_status">`+
+      Object.entries(STATUS).map(([v,o])=>`<option value="${v}"${r.status===v?" selected":""}>${o.l}</option>`).join("")+
+    `</select></div>`+
+    `<div class="field"><label>Foco do ensaio</label><textarea id="e_focus">${esc(r.focus)}</textarea></div>`+
+    `<div class="field"><label>Músicas-alvo (uma por linha · use " :: " para o objetivo)</label><textarea id="e_songs" style="min-height:120px">${esc(songsText)}</textarea></div>`+
+    `<div class="field"><label>Ideias / arranjo</label><textarea id="e_ideas">${esc(r.ideas)}</textarea></div>`+
+    mfooter(`saveEdit('${esc(rid)}')`,"Salvar alterações")
+  );
+}
+function saveEdit(rid){
+  const title=el("e_title")?.value.trim();
+  if(!title){flash("Título obrigatório");return;}
+  const r=findReh(rid); if(!r){closeModal();return;}
+  const prevById={}; r.songs.forEach(s=>{ prevById[s.name.toLowerCase()]=s; });
+  const lines=(el("e_songs")?.value||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  const songs=lines.map(line=>{
+    const parts=line.split("::");
+    const name=parts[0].trim();
+    const goal=parts.slice(1).join("::").trim();
+    const prev=prevById[name.toLowerCase()];
+    return {id:prev?prev.id:uid("g"), name, goal:goal||(prev?prev.goal:""), done:prev?prev.done:false};
+  });
+  mutate(()=>{
+    r.title=title;
+    r.date=el("e_date")?.value||"";
+    r.status=el("e_status")?.value||"plan";
+    r.focus=el("e_focus")?.value||"";
+    r.ideas=el("e_ideas")?.value||"";
+    r.songs=songs;
+    openIds.add(rid);
+  });
+  closeModal();
+  flash("✓ Alterações salvas");
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TOOLBAR / FAB / SETTINGS
+// ══════════════════════════════════════════════════════════════
+function toggleToolbar(){ const s=el("toolbarSecondary"),b=el("toolbarToggle"); s.classList.toggle("open"); b.classList.toggle("open"); }
+function toggleFab(){ const m=el("fabMenu"),o=el("fabOverlay"),f=el("fab"); const on=m.classList.toggle("open"); o.classList.toggle("on",on); f.textContent=on?"×":"+"; }
+function closeFab(){ el("fabMenu").classList.remove("open"); el("fabOverlay").classList.remove("on"); el("fab").textContent="+"; }
+function setSort(m){
+  sortMode=m; lsSet(K_SORT,m);
+  el("btn-sd")?.classList.toggle("active",m==="date");
+  el("btn-sc")?.classList.toggle("active",m==="created");
+  render();
+}
+function openSettings(){
+  const cnt=D?D.rehearsals.length:0;
+  openModal("⋯ Opções","Organizador de Ensaios",
+    `<div class="field"><button class="btn" style="width:100%;justify-content:center" onclick="closeModal();exportData()">📤 Exportar backup (JSON)</button></div>`+
+    `<div class="field"><button class="btn" style="width:100%;justify-content:center" onclick="closeModal();importData()">📥 Importar backup (JSON)</button></div>`+
+    `<div class="field"><button class="btn" style="width:100%;justify-content:center" onclick="closeModal();exportAllPDF()">🖨 Imprimir todos os ensaios</button></div>`+
+    `<div class="field" style="border-top:1px solid var(--line);margin-top:6px;padding-top:14px">`+
+      `<button class="btn danger" style="width:100%;justify-content:center" onclick="logout()">🔒 Sair (bloquear)</button>`+
+    `</div>`+
+    `<div style="font-size:11px;color:var(--muted);text-align:center;padding-top:10px">${cnt} ensaio(s) · sincronizado via Firebase</div>`
+  );
+}
+function logout(){ try{localStorage.removeItem(K_AUTH);}catch(e){} location.reload(); }
+
+// ══════════════════════════════════════════════════════════════
+//  EXPORT / IMPORT (JSON)
+// ══════════════════════════════════════════════════════════════
+function dl(name,text,type="text/plain"){
+  const blob=new Blob([text],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},300);
+}
+function _dateTag(){const d=new Date();return[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("");}
+function exportData(){
+  try{
+    const payload={formatVersion:"1.0",app:"SDM Ensaios",exportedAt:new Date().toISOString(),meta:deepClone(D.meta),rehearsals:deepClone(D.rehearsals)};
+    dl("sal-de-mare-ensaios-"+_dateTag()+".json", JSON.stringify(payload,null,2), "application/json");
+    flash("✓ Backup exportado!");
+  }catch(e){ flash("⚠ Erro ao exportar"); }
+}
+function importData(){
+  const inp=document.createElement("input");
+  inp.type="file"; inp.accept=".json"; inp.style.display="none";
+  document.body.appendChild(inp);
+  inp.onchange=()=>{ if(inp.files&&inp.files[0]) _processImport(inp.files[0]); document.body.removeChild(inp); };
+  inp.click();
+}
+function _processImport(file){
+  const reader=new FileReader();
+  reader.onerror=()=>flash("⚠ Erro ao ler o arquivo");
+  reader.onload=ev=>{
+    let raw; try{raw=JSON.parse(ev.target.result);}catch(_){flash("⚠ JSON inválido");return;}
+    const src = (raw.rehearsals||raw.data||raw.meta) ? raw : null;
+    if(!src){flash("⚠ Arquivo inválido");return;}
+    const nd=normData(src);
+    if(!isValidData(nd)){flash("⚠ Arquivo sem ensaios");return;}
+    if(!confirm(`Importar ${nd.rehearsals.length} ensaio(s)? Isto substitui os ensaios atuais.`)) return;
+    mutate(()=>{ D=nd; });
+    flash("✓ Backup importado!");
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  EXPORT PDF (impressão nativa — sem biblioteca)
+// ══════════════════════════════════════════════════════════════
+function _rehToPrintHTML(r){
+  const st=STATUS[r.status]||STATUS.plan;
+  const total=r.songs.length, done=songDone(r);
+  let h=`<div class="ps-head">`+
+    `<div class="ps-kick">Ensaio · ${esc(st.l)}</div>`+
+    `<div class="ps-title">${esc(r.title)}</div>`+
+    `<div class="ps-sub">${esc(D.meta.project||"Sal de Maré")} · ${esc(fmtDate(r.date))}</div>`+
+    `<div class="ps-meta"><span><b>${total}</b> músicas-alvo</span><span><b>${done}/${total}</b> concluídas</span></div>`+
+  `</div>`;
+  if(r.focus) h+=`<div class="ps-sec"><span class="ps-sech">Foco do ensaio</span><div class="ps-box">${esc(r.focus)}</div></div>`;
+  h+=`<div class="ps-sec"><span class="ps-sech">Músicas-alvo</span>`;
+  if(total){
+    r.songs.forEach(s=>{
+      h+=`<div class="ps-song"><span class="ps-check"></span><span class="ps-sname">${esc(s.name)}</span>`+
+         (s.goal?`<div class="ps-sgoal">${esc(s.goal)}</div>`:"")+`</div>`;
+    });
+  } else { h+=`<div class="ps-sgoal">Nenhuma música definida.</div>`; }
+  h+=`</div>`;
+  if(r.ideas) h+=`<div class="ps-sec"><span class="ps-sech">Ideias / arranjo</span><div class="ps-box">${esc(r.ideas)}</div></div>`;
+  return h;
+}
+function exportPDF(rid){
+  try{
+    const r=findReh(rid); if(!r){flash("⚠ Ensaio não encontrado");return;}
+    const now=new Date();
+    const dstr=now.toLocaleDateString("pt-BR")+" "+now.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    el("printSheet").innerHTML=_rehToPrintHTML(r)+
+      `<div class="ps-foot"><span>Sal de Maré · Ensaios</span><span>Gerado em ${esc(dstr)}</span></div>`;
+    flash("🖨 Abrindo impressão — escolha \"Salvar como PDF\"");
+    setTimeout(()=>{ try{window.print();}catch(_){flash("⚠ Impressão indisponível");} },180);
+  }catch(e){ flash("⚠ Erro ao gerar PDF"); }
+}
+function exportAllPDF(){
+  try{
+    if(!D.rehearsals.length){flash("Nenhum ensaio para imprimir");return;}
+    const now=new Date();
+    const dstr=now.toLocaleDateString("pt-BR")+" "+now.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    const parts=sortedRehearsals().map((r,i)=>
+      (i>0?`<div style="page-break-before:always"></div>`:"")+_rehToPrintHTML(r)
+    ).join("");
+    el("printSheet").innerHTML=parts+`<div class="ps-foot"><span>Sal de Maré · Ensaios</span><span>Gerado em ${esc(dstr)}</span></div>`;
+    flash("🖨 Abrindo impressão de todos os ensaios");
+    setTimeout(()=>{ try{window.print();}catch(_){flash("⚠ Impressão indisponível");} },180);
+  }catch(e){ flash("⚠ Erro ao gerar PDF"); }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ATALHOS DE TECLADO
+// ══════════════════════════════════════════════════════════════
+document.addEventListener("keydown", e=>{
+  if(e.target.matches("input,textarea,select")) return;
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="z"){ e.preventDefault(); e.shiftKey?redo():undo(); }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="y"){ e.preventDefault(); redo(); }
+  if(e.key==="Escape"){ closeModal(); closeFab(); }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  START + BOOT
+// ══════════════════════════════════════════════════════════════
+function appStart(){
+  D = loadData() || deepClone(SEED);
+  D = normData(D);
+  sortMode = lsGet(K_SORT)==="created" ? "created" : "date";
+  el("btn-sd")?.classList.toggle("active",sortMode==="date");
+  el("btn-sc")?.classList.toggle("active",sortMode==="created");
+  setText("nav-title", D.meta.project||"Sal de Maré");
+  setText("nav-badge", D.meta.version||"v1");
+  render();
+  updateSaveDot();
+  fbInit();
+}
+(function boot(){
+  if(lsGet(K_AUTH)==="1"){
+    el("lockScreen").classList.add("gone");
+    appStart();
+  }
+})();
+</script>
+</body>
+</html>
